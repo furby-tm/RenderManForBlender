@@ -59,7 +59,7 @@ from bpy.app.handlers import persistent
 from .export import write_rib, write_preview_rib, get_texture_list,\
     issue_shader_edits, get_texture_list_preview, issue_transform_edits,\
     interactive_initial_rib, update_light_link, delete_light,\
-    reset_light_illum, solo_light, mute_lights, issue_light_vis
+    reset_light_illum, solo_light, mute_lights, issue_light_vis, write_archive, write_rib_ipr, export_searchpaths
 
 from .nodes import get_tex_file_name
 
@@ -585,15 +585,21 @@ class RPass:
             self.end_interactive()
             return
 
-        self.ri.Begin(self.paths['rib_output'])
-        self.ri.Option("rib", {"string asciistyle": "indented,wide"})
+        #self.ri.Begin(self.paths['rib_output'])
+        #self.ri.Option("rib", {"string asciistyle": "indented,wide"})
         self.material_dict = {}
         self.instance_dict = {}
         self.lights = {}
         self.light_filter_map = {}
         self.current_solo_light = None
         self.muted_lights = []
+        self.transforms = {}
+        self.updating = False
+        self.update_ob = None
+        self.total_restart_time = 0
+        self.ribgen_time = 0
         for obj in self.scene.objects:
+            self.transforms[obj.name] = obj.matrix_world.copy()
             if obj.type == 'LAMP' and obj.name not in self.lights:
                 # add the filters to the filter ma
                 for lf in obj.data.renderman.light_filters:
@@ -618,8 +624,8 @@ class RPass:
             visible_objects = get_Selected_Objects(self.scene)
         else:
             visible_objects = None
-        write_rib(self, self.scene, self.ri, visible_objects)
-        self.ri.End()
+        #write_rib(self, self.scene, self.ri, visible_objects)
+        #self.ri.End()
         self.convert_textures(get_texture_list(self.scene))
 
         if sys.platform == 'win32':
@@ -628,9 +634,18 @@ class RPass:
         else:
             filename = "launch:prman? -t:%d" % self.rm.threads + " -cwd %s -ctrl $ctrlin $ctrlout \
             -dspyserver it" % self.paths['export_dir'].replace(' ', '%20')
+        self.ri.Option("rib", {"string format": "binary"})
         self.ri.Begin(filename)
-        self.ri.Option("rib", {"string asciistyle": "indented,wide"})
+        self.ri.Option("rib", {"string format": "binary"})
+        
+        export_searchpaths(self.ri, self.paths)
+
+        # output archives
+        for ob in self.scene.objects:
+            write_archive(self, self.ri, ob)
+
         interactive_initial_rib(self, self.ri, self.scene, prman)
+        write_rib_ipr(self, self.scene, self.ri, visible_objects, first_time = True)
 
         while not self.is_prman_running():
             time.sleep(.1)
@@ -640,10 +655,34 @@ class RPass:
         self.is_interactive_ready = True
         return
 
+    def restart_ipr(self):
+        t = time.time()
+        self.edit_num += 1
+        
+        self.ri.ArchiveRecord("structure", self.ri.STREAMMARKER + "%d" % self.edit_num)
+        prman.RicFlush("%d" % self.edit_num, 0, self.ri.SUSPENDRENDERING)
+        self.ri.EditWorldEnd()
+        self.ri.EditWorldBegin("", {"string rerenderer": "raytrace"})
+        #ri.Option('rerender', {'int[2] lodrange': [0, 3]})
+
+        #self.ri.ArchiveRecord("structure", self.ri.STREAMMARKER + "_initial")
+        #prman.RicFlush("_initial", 0, self.ri.FINISHRENDERING)
+        t2 = time.time()
+        write_rib_ipr(self, self.scene, self.ri, [])
+        self.ribgen_time += time.time() - t2
+
+        #while not self.is_prman_running():
+        #    time.sleep(.1)
+
+        self.ri.EditBegin('null', {})
+        self.ri.EditEnd()
+        self.total_restart_time += time.time() - t
+
+
     # find the changed object and send for edits
     def issue_transform_edits(self, scene):
         active = scene.objects.active
-        if (active and active.is_updated) or (active and active.type == 'LAMP' and active.is_updated_data):
+        if (active and active.type == 'LAMP' and active.is_updated_data):
             if is_ipr_running():
                 issue_transform_edits(self, self.ri, active, prman)
             else:
@@ -655,29 +694,22 @@ class RPass:
                 issue_transform_edits(self, self.ri, scene.camera, prman)
             else:
                 return
-        # check for light deleted
-        if not active and len(self.lights) > len([o for o in scene.objects if o.type == 'LAMP']):
-            lights_deleted = []
-            for light_name, data_name in self.lights.items():
-                if light_name not in scene.objects:
-                    if is_ipr_running():
-                        delete_light(self, self.ri, data_name, prman)
-                        lights_deleted.append(light_name)
-                    else:
-                        return
-
-            for light_name in lights_deleted:
-                self.lights.pop(light_name, None)
-
+        
         if active and active.type in  ['MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'LATTICE']:
-            
-            for mat_slot in active.material_slots:
-                if mat_slot.material not in self.material_dict:
-                    self.material_dict[mat_slot.material] = []
-                if active not in self.material_dict[mat_slot.material]:
-                    self.material_dict[mat_slot.material].append(active)
-                if mat_slot.material.is_updated:
-                    issue_shader_edits(self, self.ri, prman, nt=mat_slot.material.node_tree)
+            #print('active ' + active.name, active.is_updated, active.is_updated_data)
+            if active.is_updated and active.matrix_world != self.transforms[active.name]:
+                self.transforms[active.name] = active.matrix_world.copy()
+                if prman.RicGetProgress() > 0:
+                    self.updating = True
+                    self.restart_ipr()
+                    self.updating = False
+                else:
+                    self.updating = True
+                
+        if self.updating and prman.RicGetProgress() > 0:
+            self.restart_ipr()
+            self.updating = False
+
 
     def update_illuminates(self):
         update_illuminates(self, self.ri, prman)
@@ -730,6 +762,7 @@ class RPass:
 
     # ri.end
     def end_interactive(self):
+        print("times ", self.ribgen_time, self.total_restart_time)
         self.is_interactive = False
         if self.is_prman_running():
             self.edit_num += 1

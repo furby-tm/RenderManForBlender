@@ -709,6 +709,13 @@ def export_object_transform(ri, ob):
     ri.Transform(rib(m))
     ri.ScopedCoordinateSystem(ob.name)
 
+def export_object_transform_ipr(ri, ob):
+    m = ob.matrix_world
+    if ob.type == 'LAMP':
+        m = modify_light_matrix(m.copy(), ob)
+    ri.Transform(rib(m))
+    ri.ScopedCoordinateSystem(ob.name)
+
 
 def export_light_source(ri, lamp):
     names = {'POINT': 'PxrSphereLight', 'SUN': 'PxrDistantLight',
@@ -2049,6 +2056,23 @@ def export_data_archives(ri, scene, rpass, data_blocks, engine):
                 print('ERROR: Rib gen error exporting %s:' %
                       db.archive_filename, traceback.format_exc())
 
+
+def write_archive(rpass, ri, ob):
+    if ob.data:
+        try:
+            ri.ArchiveBegin(ob.data.name)
+            if ob.type == "MESH":
+                export_geometry_data(ri, rpass.scene, ob)
+            #elif db.type == "PSYS":
+            #    export_particle_archive(ri, scene, rpass, db)
+            #elif db.type == "DUPLI":
+            #    export_dupli_archive(ri, scene, rpass, db, data_blocks)
+            ri.ArchiveEnd()
+        except Exception as err:
+            ri.ArchiveEnd()
+            print('ERROR: Rib gen error exporting %s:' %
+                      ob.name, traceback.format_exc())
+
 # Deal with the special needs of a RIB archive but after that pass on to
 # the same functions that export_data_archives does.
 
@@ -2101,6 +2125,47 @@ def export_instance_read_archive(ri, instance, instances, data_blocks, rpass, is
         if child_name in instances:
             export_instance_read_archive(
                 ri, instances[child_name], instances, data_blocks, rpass, is_child=True)
+    ri.AttributeEnd()
+
+def export_object_read_archive(ri, ob, rpass, parent=None, visible_objects=None):
+    ri.AttributeBegin()
+    name = parent.name + '.' + ob.name if parent else ob.name
+    ri.Attribute("identifier", {"string name": name})
+    export_object_attributes(ri, rpass.scene, ob, visible_objects)
+    # now the matrix, if we're transforming do the motion here
+    if not parent:
+        export_object_transform(ri, ob)
+
+    if ob.type == 'LAMP':
+        export_light_shaders(ri, ob.data, '')
+
+    elif(hasattr(ob, 'data') and hasattr(ob.data, 'renderman')):
+        for mat_slot in ob.material_slots:
+            export_material_archive(ri, mat_slot.material)
+
+        # we want these relative paths of the archive
+        if ob.type == 'MESH':
+            bounds = rib_ob_bounds(ob.bound_box)
+            params = {"string filename": ob.data.name,
+                      "float[6] bound": bounds}
+            #print('read archve ' + ob.data.name)
+            ri.Procedural2(ri.Proc2DelayedReadArchive, ri.SimpleBound, params)
+    if ob.dupli_type == 'GROUP':
+        ob.dupli_list_create(rpass.scene, "RENDER")
+        for dupob in ob.dupli_list:
+            #print('dupli ob '+ dupob.object.name)
+            ri.Transform(rib(dupob.matrix))
+            mat = dupob.object.active_material
+            if mat:
+                export_material_archive(ri, mat)
+            
+            export_object_read_archive(ri, dupob.object, rpass, ob, visible_objects)
+        ob.dupli_list_clear()
+        # else:
+        #     if data_block.type != 'DUPLI':
+        #         ri.Transform([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+        #         ri.CoordinateSystem(data_block.name)
+        #     ri.ReadArchive(archive_filename)
     ri.AttributeEnd()
 
 
@@ -2445,16 +2510,18 @@ def export_dupli_archive(ri, scene, rpass, data_block, data_blocks):
 
 
 # export an archive with all the materials and read it back in
-def export_materials_archive(ri, rpass, scene):
+def export_materials_archive(ri, rpass, scene, first_time = True):
     archive_filename = user_path(scene.renderman.path_object_archive_static,
                                  scene).replace('{object}', 'materials')
-    ri.Begin(archive_filename)
-    for mat_name, mat in bpy.data.materials.items():
-        ri.ArchiveBegin('material.' + mat_name)
-        #ri.Attribute("identifier", {"name": mat_name})
-        export_material(ri, mat)
-        ri.ArchiveEnd()
-    ri.End()
+    
+    if first_time:
+        ri.Begin(archive_filename)
+        for mat_name, mat in bpy.data.materials.items():
+            ri.ArchiveBegin('material.' + mat_name)
+            #ri.Attribute("identifier", {"name": mat_name})
+            export_material(ri, mat)
+            ri.ArchiveEnd()
+        ri.End()
 
     ri.ReadArchive(os.path.relpath(archive_filename, rpass.paths['archive']))
 
@@ -3304,6 +3371,64 @@ def write_rib(rpass, scene, ri, visible_objects=None, engine=None):
 
     ri.FrameEnd()
 
+def write_rib_ipr(rpass, scene, ri, visible_objects=None, engine=None, first_time = False):
+
+    # precalculate motion blur data
+    #data_blocks, instances = cache_motion(scene, rpass)
+
+    # get a list of empties to check if they contain a RIB archive.
+    # this should be the only time empties are evaluated.
+    #emptiesToExport = get_valid_empties(scene, rpass)
+
+    # export rib archives of objects
+    #export_data_archives(ri, scene, rpass, data_blocks, engine)
+
+    #export_header(ri)
+    #export_header_rib(ri, scene)
+    #
+    #export_options(ri, scene)
+
+    #export_display(ri, rpass, scene)
+
+    #export_displayfilters(ri, scene)
+    #export_samplefilters(ri, scene)
+    ri.FrameBegin(scene.frame_current)
+
+    export_hider(ri, rpass, scene)
+    export_integrator(ri, rpass, scene)
+
+    # export_inline_rib(ri, rpass, scene)
+    #scene.frame_set(scene.frame_current)
+    #ri.FrameBegin(scene.frame_current)
+
+    export_camera(ri, scene, None, scene.camera)
+    export_render_settings(ri, rpass, scene)
+    # export_global_illumination_settings(ri, rpass, scene)
+
+    ri.WorldBegin()
+    export_world_rib(ri, scene.world)
+
+    # export_global_illumination_lights(ri, rpass, scene)
+    # export_world_coshaders(ri, rpass, scene) # BBM addition
+    export_world(ri, scene.world)
+    #export_scene_lights(ri, scene.objects)
+
+    export_default_bxdf(ri, "default")
+    export_materials_archive(ri, rpass, scene, first_time = first_time)
+    # now output the object archives
+    for name, ob in scene.objects.items():
+        if ob.type not in ['CAMERA']:
+            export_object_read_archive(
+                ri, ob, rpass, parent=None, visible_objects=visible_objects)
+
+    #for object in emptiesToExport:
+    #    export_empties_archives(ri, object)
+
+    #instances = None
+    ri.WorldEnd()
+
+    ri.FrameEnd()
+
 
 def write_preview_rib(rpass, scene, ri):
     preview_rib_data_path = \
@@ -3452,11 +3577,10 @@ def write_auto_archives(paths, scene, info_callback):
 
 
 def interactive_initial_rib(rpass, ri, scene, prman):
-    ri.Display('rerender', 'it', 'rgba')
+    ri.Display('rerender', 'it', 'rgba', {'int merge': [1]})
     export_hider(ri, rpass, scene, True)
 
-    ri.EditWorldBegin(
-        rpass.paths['rib_output'], {"string rerenderer": "raytrace"})
+    ri.EditWorldBegin("", {"string rerenderer": "raytrace"})
     ri.Option('rerender', {'int[2] lodrange': [0, 3]})
 
     ri.ArchiveRecord("structure", ri.STREAMMARKER + "_initial")
