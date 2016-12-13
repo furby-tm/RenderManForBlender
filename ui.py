@@ -481,6 +481,7 @@ class RENDER_PT_renderman_sampling_preview(PRManButtonsPanel, Panel):
         rm = scene.renderman
 
         col = layout.column()
+        col.prop(rm, 'ipr_frequency')
         col.prop(rm, "preview_pixel_variance")
         row = col.row(align=True)
         row.prop(rm, "preview_min_samples", text="Min Samples")

@@ -445,6 +445,8 @@ class RendermanSceneSettings(bpy.types.PropertyGroup):
     ll = CollectionProperty(type=LightLinking,
                             name='Light Links')
 
+    ipr_frequency = FloatProperty(default=1.0, name='IPR Update Interval')
+
     # we need these in case object/light selector changes
     def reset_ll_light_index(self, context):
         self.ll_light_index = -1

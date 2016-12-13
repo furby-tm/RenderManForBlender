@@ -710,10 +710,10 @@ def export_object_transform(ri, ob):
     ri.ScopedCoordinateSystem(ob.name)
 
 def export_object_transform_ipr(ri, ob):
-    m = ob.matrix_world
+    m = ob.matrix_local
     if ob.type == 'LAMP':
         m = modify_light_matrix(m.copy(), ob)
-    ri.Transform(rib(m))
+    ri.ConcatTransform(rib(m))
     ri.ScopedCoordinateSystem(ob.name)
 
 
@@ -2057,21 +2057,64 @@ def export_data_archives(ri, scene, rpass, data_blocks, engine):
                       db.archive_filename, traceback.format_exc())
 
 
-def write_archive(rpass, ri, ob):
-    if ob.data:
+def write_archive(rpass, ri, ob, do_data=True, do_object=True):
+    if do_data:
         try:
-            ri.ArchiveBegin(ob.data.name)
+            name = ob.data.name + '-' + ob.type if ob.data else ob.name + '-' + ob.type
+            ri.ArchiveBegin(name)
             if ob.type == "MESH":
+                for mat_slot in ob.material_slots:
+                    export_material_archive(ri, mat_slot.material)
                 export_geometry_data(ri, rpass.scene, ob)
-            #elif db.type == "PSYS":
-            #    export_particle_archive(ri, scene, rpass, db)
-            #elif db.type == "DUPLI":
-            #    export_dupli_archive(ri, scene, rpass, db, data_blocks)
+            elif ob.type == 'LAMP':
+                export_light_shaders(ri, ob.data, '')
             ri.ArchiveEnd()
         except Exception as err:
             ri.ArchiveEnd()
             print('ERROR: Rib gen error exporting %s:' %
                       ob.name, traceback.format_exc())
+
+    if do_object:
+        ri.ArchiveBegin(ob.name)
+        ri.AttributeBegin()
+        ri.Attribute("identifier", {"string name": ob.name})
+        export_object_attributes(ri, rpass.scene, ob, None)
+        # now the matrix, if we're transforming do the motion here
+        export_object_transform_ipr(ri, ob)
+
+        if(hasattr(ob, 'data') and hasattr(ob.data, 'renderman')):
+            # we want these relative paths of the archive
+            data_name = ob.data.name + '-' + ob.type
+            bounds = rib_ob_bounds(ob.bound_box)
+            params = {"string filename": data_name,
+                      "float[6] bound": bounds}
+            if ob.type == 'LAMP' or is_emissive(ob):
+
+                params['__immediatesubdivide'] = 1
+            #print('read archve ' + ob.data.name)
+            ri.Procedural2(ri.Proc2DelayedReadArchive, ri.SimpleBound, params)
+        else:
+            ri.ReadArchive(ob.name + '-' + ob.type)
+        
+        for child in ob.children:
+            ri.ReadArchive(child.name)
+
+        if ob.dupli_type == 'GROUP':
+            #ob.dupli_list_create(rpass.scene, "RENDER")
+            ri.Translate(-ob.dupli_group.dupli_offset[0], -ob.dupli_group.dupli_offset[1], -ob.dupli_group.dupli_offset[2])
+            for ob in ob.dupli_group.objects:
+                #print('dupli ob '+ dupob.object.name)
+                #ri.Transform(rib(dupob.matrix))
+                
+                ri.ReadArchive(ob.name)
+
+            #ob.dupli_list_clear()
+
+
+        ri.AttributeEnd()
+        ri.ArchiveEnd()
+
+
 
 # Deal with the special needs of a RIB archive but after that pass on to
 # the same functions that export_data_archives does.
@@ -3417,10 +3460,10 @@ def write_rib_ipr(rpass, scene, ri, visible_objects=None, engine=None, first_tim
     export_materials_archive(ri, rpass, scene, first_time = first_time)
     # now output the object archives
     for name, ob in scene.objects.items():
-        if ob.type not in ['CAMERA']:
-            export_object_read_archive(
-                ri, ob, rpass, parent=None, visible_objects=visible_objects)
-
+        if ob.type not in ['CAMERA'] and not ob.parent:
+            ri.ReadArchive(ob.name)
+#            export_object_read_archive(
+#                ri, ob, rpass, parent=None, visible_objects=visible_objects)
     #for object in emptiesToExport:
     #    export_empties_archives(ri, object)
 
@@ -3580,7 +3623,7 @@ def interactive_initial_rib(rpass, ri, scene, prman):
     ri.Display('rerender', 'it', 'rgba', {'int merge': [1]})
     export_hider(ri, rpass, scene, True)
 
-    ri.EditWorldBegin("", {"string rerenderer": "raytrace"})
+    ri.EditWorldBegin("world", {"string rerenderer": "raytrace"})
     ri.Option('rerender', {'int[2] lodrange': [0, 3]})
 
     ri.ArchiveRecord("structure", ri.STREAMMARKER + "_initial")
@@ -3655,8 +3698,8 @@ def is_emissive(object):
         for mat in object.data.materials:
             if mat is not None and mat.node_tree:
                 nt = mat.node_tree
-                if 'Output' in nt.nodes and \
-                        nt.nodes['Output'].inputs['Light'].is_linked:
+                if 'PRMan Material' in nt.nodes and \
+                        nt.nodes['PRMan Material'].inputs['Light'].is_linked:
                     return True
     return False
 

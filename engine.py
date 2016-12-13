@@ -594,12 +594,16 @@ class RPass:
         self.current_solo_light = None
         self.muted_lights = []
         self.transforms = {}
-        self.updating = False
+        self.update_obs = set()
+        self.update_datas = set()
+        self.updating = 0
+        self.update_frequency = self.scene.renderman.ipr_frequency
+        self.do_update = False
         self.update_ob = None
         self.total_restart_time = 0
         self.ribgen_time = 0
         for obj in self.scene.objects:
-            self.transforms[obj.name] = obj.matrix_world.copy()
+            self.transforms[obj.name] = obj.matrix_local.copy()
             if obj.type == 'LAMP' and obj.name not in self.lights:
                 # add the filters to the filter ma
                 for lf in obj.data.renderman.light_filters:
@@ -644,8 +648,11 @@ class RPass:
         for ob in self.scene.objects:
             write_archive(self, self.ri, ob)
 
-        interactive_initial_rib(self, self.ri, self.scene, prman)
+        self.ri.ArchiveBegin('world')
         write_rib_ipr(self, self.scene, self.ri, visible_objects, first_time = True)
+        self.ri.ArchiveEnd()
+        interactive_initial_rib(self, self.ri, self.scene, prman)
+        #self.ri.ReadArchive('world')
 
         while not self.is_prman_running():
             time.sleep(.1)
@@ -662,14 +669,14 @@ class RPass:
         self.ri.ArchiveRecord("structure", self.ri.STREAMMARKER + "%d" % self.edit_num)
         prman.RicFlush("%d" % self.edit_num, 0, self.ri.SUSPENDRENDERING)
         self.ri.EditWorldEnd()
-        self.ri.EditWorldBegin("", {"string rerenderer": "raytrace"})
+        self.ri.EditWorldBegin("world", {"string rerenderer": "raytrace"})
         #ri.Option('rerender', {'int[2] lodrange': [0, 3]})
 
         #self.ri.ArchiveRecord("structure", self.ri.STREAMMARKER + "_initial")
         #prman.RicFlush("_initial", 0, self.ri.FINISHRENDERING)
-        t2 = time.time()
-        write_rib_ipr(self, self.scene, self.ri, [])
-        self.ribgen_time += time.time() - t2
+        #t2 = time.time()
+        #write_rib_ipr(self, self.scene, self.ri, [])
+        #self.ribgen_time += time.time() - t2
 
         #while not self.is_prman_running():
         #    time.sleep(.1)
@@ -677,10 +684,11 @@ class RPass:
         self.ri.EditBegin('null', {})
         self.ri.EditEnd()
         self.total_restart_time += time.time() - t
-
+        
 
     # find the changed object and send for edits
     def issue_transform_edits(self, scene):
+        #print('issue edits')
         active = scene.objects.active
         if (active and active.type == 'LAMP' and active.is_updated_data):
             if is_ipr_running():
@@ -695,21 +703,59 @@ class RPass:
             else:
                 return
         
-        if active and active.type in  ['MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'LATTICE']:
-            #print('active ' + active.name, active.is_updated, active.is_updated_data)
-            if active.is_updated and active.matrix_world != self.transforms[active.name]:
-                self.transforms[active.name] = active.matrix_world.copy()
-                if prman.RicGetProgress() > 0:
-                    self.updating = True
-                    self.restart_ipr()
-                    self.updating = False
-                else:
-                    self.updating = True
-                
-        if self.updating and prman.RicGetProgress() > 0:
-            self.restart_ipr()
-            self.updating = False
+        
+        self.update_obs.update({ob for ob in scene.objects if ob.is_updated and ob.type in ['MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'LATTICE', 'NONE'] and (ob.name not in self.transforms or self.transforms[ob.name] != ob.matrix_local)})
+        self.update_datas.update({ob for ob in scene.objects if ob.is_updated_data and ob.type in ['MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'LATTICE', 'NONE']})
 
+        # #print(update_obs)
+        # print('updating obs')
+        # for ob in update_obs:
+        #     # this is a new ob.  also update
+        #     if ob.name not in self.transforms:
+        #         self.do_update = True
+        #         self.transforms[ob.name] = ob.matrix_local.copy()
+        #         write_archive(self, self.ri, ob, do_data=True)
+        #         if not ob.parent:
+        #             self.ri.ArchiveBegin('world')
+        #             write_rib_ipr(self, self.scene, self.ri, None, first_time = False)
+        #             self.ri.ArchiveEnd()
+
+        #     # obs moved / updated
+        #     elif ob.matrix_local != self.transforms[ob.name]:
+        #         self.do_update = True
+        #         self.transforms[ob.name] = ob.matrix_local.copy()
+        #         write_archive(self, self.ri, ob, do_data=False)
+
+        # print('done updating obs')
+
+        # update_datas = [ob for ob in scene.objects if ob.is_updated_data and ob.type in ['MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'LATTICE', 'NONE']]
+        # #updating the data for this ob, also update the bounding box!
+        # for ob in update_datas:
+        #     self.do_update = True
+        #     write_archive(self, self.ri, ob, do_data=True, do_object=True)
+            
+
+        if (len(self.update_obs) or len(self.update_datas)) and prman.RicGetProgress() > 0 and time.time() - self.updating > self.update_frequency: #and prman.RicGetProgress() > 0:
+            update_obs = self.update_obs.union(self.update_datas)
+            update_main_rib = False
+            for ob in update_obs:
+                write_archive(self, self.ri, ob, do_data=ob in self.update_datas)
+                if ob.name not in self.transforms and not ob.parent:
+                    update_main_rib = True
+                self.transforms[ob.name] = ob.matrix_local.copy()
+            self.update_obs = set()
+            self.update_datas = set()
+            
+            if update_main_rib:
+                self.ri.ArchiveBegin('world')
+                write_rib_ipr(self, self.scene, self.ri, None, first_time = False)
+                self.ri.ArchiveEnd()
+
+            self.restart_ipr()
+            self.updating = time.time()
+            #self.do_update = False
+        #print('done issue edits')
+    
 
     def update_illuminates(self):
         update_illuminates(self, self.ri, prman)
