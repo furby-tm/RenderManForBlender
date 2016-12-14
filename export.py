@@ -2099,7 +2099,7 @@ def write_archive(rpass, ri, ob, do_data=True, do_object=True):
         for child in ob.children:
             ri.ReadArchive(child.name)
 
-        if ob.dupli_type == 'GROUP':
+        if ob.dupli_type == 'GROUP' and ob.dupli_group:
             #ob.dupli_list_create(rpass.scene, "RENDER")
             ri.Translate(-ob.dupli_group.dupli_offset[0], -ob.dupli_group.dupli_offset[1], -ob.dupli_group.dupli_offset[2])
             for ob in ob.dupli_group.objects:
