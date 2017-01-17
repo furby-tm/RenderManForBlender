@@ -45,48 +45,6 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         description="Fraction of time that the shutter is open (360 is one full second).  180 is typical for North America 24fps cameras, 172.8 is typical in Europe",
         default=180.0, min=0.0, max=360.0)
 
-export_header(ri)
-    export_header_rib(ri, scene)
-    export_searchpaths(ri, rpass.paths)
-    export_options(ri, scene)
-
-    export_display(ri, rpass, scene)
-
-    export_displayfilters(ri, scene)
-    export_samplefilters(ri, scene)
-
-    export_hider(ri, rpass, scene)
-    export_integrator(ri, rpass, scene)
-
-    # export_inline_rib(ri, rpass, scene)
-    scene.frame_set(scene.frame_current)
-    ri.FrameBegin(scene.frame_current)
-
-    export_camera(ri, scene, instances)
-    export_render_settings(ri, rpass, scene)
-    # export_global_illumination_settings(ri, rpass, scene)
-
-    ri.WorldBegin()
-    export_world_rib(ri, scene.world)
-
-    # export_global_illumination_lights(ri, rpass, scene)
-    # export_world_coshaders(ri, rpass, scene) # BBM addition
-    export_world(ri, scene.world)
-    export_scene_lights(ri, instances)
-
-    export_default_bxdf(ri, "default")
-    export_materials_archive(ri, rpass, scene)
-    # now output the object archives
-    
-
-    for object in emptiesToExport:
-        export_empties_archives(ri, object)
-
-    instances = None
-    ri.WorldEnd()
-
-    ri.FrameEnd()
-
 
     ### overrides of base class methods ###
     def to_rib(self, ri, **kwargs):
@@ -96,29 +54,25 @@ export_header(ri)
 
         self.export_options(ri)
 
-        self.export_display(ri)
+        #self.export_display(ri)
 
-        self.export_displayfilters(ri)
-        self.export_samplefilters(ri)
+        #self.export_displayfilters(ri)
+        #self.export_samplefilters(ri)
 
-        self.export_hider(ri)
-        self.export_integrator(ri)
+        #self.export_hider(ri)
+        #self.export_integrator(ri)
 
         ri.FrameBegin(scene.frame_current)
 
-        self.export_render_settings(ri)
-        # export_global_illumination_settings(ri, rpass, scene)
-
+        #self.export_render_settings(ri)
+        
         ri.WorldBegin()
-        export_world_rib(ri, scene.world)
-
-        # export_global_illumination_lights(ri, rpass, scene)
-        # export_world_coshaders(ri, rpass, scene) # BBM addition
-        export_world(ri, scene.world)
-        export_scene_lights(ri, instances)
-
-        export_default_bxdf(ri, "default")
-        export_materials_archive(ri, rpass, scene)
+        
+        if scene.world:
+            scene.world.renderman.to_rib(ri, **kwargs)
+        
+        #export_default_bxdf(ri, "default")
+        #export_materials_archive(ri, rpass, scene)
         
         # only output the top level objects
         # the children objects will be under
