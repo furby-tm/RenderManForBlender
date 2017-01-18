@@ -2,7 +2,7 @@ import os.path
 from .base_classes import RendermanBasePropertyGroup
 from bpy.props import *
 from .rib_helpers import *
-from ..utils.util import path_list_convert
+from ..util.util import path_list_convert
 
 def export_searchpaths(ri, paths):
     ''' converts the paths dictionary to a rib specific format and exports them ''' 
@@ -52,7 +52,7 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         scene = self.id_data
         scene_rm = scene.renderman
 
-        self.export_options(ri)
+        #self.export_options(ri)
 
         #self.export_display(ri)
 
@@ -68,8 +68,8 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         
         ri.WorldBegin()
         
-        if scene.world:
-            scene.world.renderman.to_rib(ri, **kwargs)
+        #if scene.world:
+        #    scene.world.renderman.to_rib(ri, **kwargs)
         
         #export_default_bxdf(ri, "default")
         #export_materials_archive(ri, rpass, scene)
