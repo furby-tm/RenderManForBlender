@@ -1,11 +1,12 @@
 import bpy
 from .base_classes import PRManPanel
+from bpy.types import Panel
 from ..resources.icons.icons import load_icons
 
 '''This file defines the panels that appear in the Render ui tab'''
 
 
-class RENDER_PT_renderman_motion_blur(PRManPanel):
+class RENDER_PT_renderman_motion_blur(PRManPanel, Panel):
     '''This panel covers the settings for Renderman's motion blur'''
     bl_label = "Motion Blur"
     bl_options = {'DEFAULT_CLOSED'}
@@ -44,7 +45,7 @@ class RENDER_PT_renderman_motion_blur(PRManPanel):
             row.prop(rm, "f2")
 
 
-class RENDER_PT_renderman_advanced_settings(PRManPanel):
+class RENDER_PT_renderman_advanced_settings(PRManPanel, Panel):
     '''This panel covers additional render settings
 
     # shading and tessellation

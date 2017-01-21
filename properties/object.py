@@ -1,5 +1,6 @@
 from .base_classes import RendermanPropertyGroup
 from .rib_helpers import rib
+from bpy.props import *
 
 ''' Object Properties ''' 
 class RendermanObjectSettings(RendermanPropertyGroup):

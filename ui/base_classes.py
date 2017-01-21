@@ -4,21 +4,21 @@ from bpy.types import Panel
 from ..resources.icons.icons import load_icons
 
 # Standard panel
-
-
-class PRManPanel(Panel):
+class PRManPanel():
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
-    bl_context = "render"
-
+    
     @classmethod
     def poll(cls, context):
         rd = context.scene.render
         return rd.engine == 'PRMAN_RENDER'
 
 
+
 # Panel used for any collections (mesh, layers)
 class PRManCollectionPanel(PRManPanel):
+    def draw(self, context):
+        pass
 
     def _draw_collection(self, context, layout, ptr, name, operator,
                          opcontext, prop_coll, collection_index, default_name=''):

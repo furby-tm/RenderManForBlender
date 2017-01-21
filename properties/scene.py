@@ -7,6 +7,7 @@ from ..util.util import path_list_convert, args_files_in_path
 from bpy.props import PointerProperty, StringProperty, BoolProperty, \
     EnumProperty, IntProperty, FloatProperty, FloatVectorProperty, \
     CollectionProperty, BoolVectorProperty
+from .render_layer import RendermanRenderLayerSettings
 
 
 def export_searchpaths(ri, paths):
@@ -235,6 +236,10 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         description="Recompile used textures at export time to the current rib folder. Leave this unchecked to speed up re-render times",
         default=False)
 
+    # render layers (since we can't save them on the layer themselves)
+    render_layers = CollectionProperty(type=RendermanRenderLayerSettings,
+                                       name='Custom AOVs')
+
     ### overrides of base class methods ###
 
     def to_rib(self, ri, **kwargs):
@@ -256,7 +261,17 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
 
         # each render layer gets it's own display and world rib
         for render_layer in scene.render.layers:
-            self.render_layer_to_rib(ri, render_layer, **kwargs)
+            ri.WorldBegin()
+            # if scene.world:
+            #    scene.world.renderman.to_rib(ri, **kwargs)
+
+            self.export_displays_for_layer(ri, render_layer, **kwargs)
+            kwargs['render_layer'] = render_layer
+            for ob in scene.objects:
+                if not ob.parent:
+                    ob.renderman.to_rib(ri, **kwargs)
+
+            ri.WorldEnd()
 
         ri.FrameEnd()
 
@@ -363,103 +378,15 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
                 filter_names): filter_names}
             ri.SampleFilter('PxrSampleFilterCombiner', 'combiner', params)
 
-    def render_layer_to_rib(self, ri, render_layer, **kwargs):
-        ''' Each Render Layer gets it own world begin, world end 
-            pass the visible layers to the objects so that only visibile 
-            objects get exported '''
-        scene = self.id_data
-        ri.WorldBegin()
-        # if scene.world:
-        #    scene.world.renderman.to_rib(ri, **kwargs)
-
-        self.export_displays_for_layer(ri, render_layer, **kwargs)
-        kwargs['render_layer'] = render_layer
-        for ob in scene.objects:
-            if not ob.parent:
-                ob.renderman.to_rib(ri, **kwargs)
-
-        ri.WorldEnd()
-
     def export_displays_for_layer(self, ri, render_layer, **kwargs):
-        ''' export all the displays for this render layer 
-            as well as the bucket order '''
+        rm_rl = self.render_layers.get(render_layer.name, None)
         is_interactive = kwargs.get('is_interactive', False)
         scene = self.id_data
-        render_settings = scene.render
+        # there's no render layer settins
+        if not rm_rl or is_interactive or is_preview:
+            RendermanRenderLayerSettings.simple_to_rib(ri, render_layer, **kwargs)
 
-        # bucket order
-        # bucket_order = 'spiral' if is_interactive else self.bucket_shape.lower()
-        # bucket_params = {'string order': [bucket_order]}
-        # if bucket_order == 'spiral':
-        #     x = self.bucket_spiral_x
-        #     y = self.bucket_spiral_y
-        #     if x > render_settings.resolution_x or x == -1:
-        #         x = settings.resolution_x / 2
-        #     if y > render_settings.resolution_y or y == -1:
-        #         y = settings.resolution_y / 2
-        #     bucket_params['orderorigin'] = [x,y]
-        # ri.Option("bucket", {"string order": [rm.bucket_shape.lower()]})
-
-        display_driver = kwargs.get('display_driver', 'openexr')
-        paths = kwargs.get('paths', {})
-        output_files = paths.get('output_files', [])
-        aovs_to_denoise = paths.get('aovs_to_denoise', [])
-
-        if 'main_image' in paths:
-            # just going to always output rgba
-            ri.Display(paths['main_image'], display_driver, "rgba", {})
-            output_files.append(paths['main_image'])
+        # else we have custom rman render layer settings
         else:
-            ri.Display('null', 'null', "rgba", {})
+            rm_rl.to_rib(ri)
 
-        # rm_rl = self.render_layers.get(render_layer.name, None)
-
-        # # there's no render layer settins
-        # if not rm_rl:
-        #     RenderLayer.simple_to_rib(ri, render_layer)
-
-        # # else we have custom rman render layer settings
-        # else:
-        #     rm_rl.to_rib(ri)
-
-        # external_render = kwargs.get('external_render', False)
-        # if (self.do_denoise and not external_render or \
-        #     self.external_denoise and external_render) and not is_interactive:
-        #     # add display channels for denoising
-        #     denoise_aovs = [
-        #         # (name, declare type/name, source, statistics, filter)
-        #         ("Ci", 'color', None, None, None),
-        #         ("a", 'float', None, None, None),
-        #         ("mse", 'color', 'color Ci', 'mse', None),
-        #         ("albedo", 'color',
-        #          'color lpe:nothruput;noinfinitecheck;noclamp;unoccluded;overwrite;C(U2L)|O',
-        #          None, None),
-        #         ("albedo_var", 'color', 'color lpe:nothruput;noinfinitecheck;noclamp;unoccluded;overwrite;C(U2L)|O',
-        #          "variance", None),
-        #         ("diffuse", 'color', 'color lpe:C(D[DS]*[LO])|O', None, None),
-        #         ("diffuse_mse", 'color', 'color lpe:C(D[DS]*[LO])|O', 'mse', None),
-        #         ("specular", 'color', 'color lpe:CS[DS]*[LO]', None, None),
-        #         ("specular_mse", 'color', 'color lpe:CS[DS]*[LO]', 'mse', None),
-        #         ("z", 'float', 'float z', None, True),
-        #         ("z_var", 'float', 'float z', "variance", True),
-        #         ("normal", 'normal', 'normal Nn', None, None),
-        #         ("normal_var", 'normal', 'normal Nn', "variance", None),
-        #         ("forward", 'vector', 'vector motionFore', None, None),
-        #         ("backward", 'vector', 'vector motionBack', None, None)
-        #     ]
-
-        #     for aov, declare_type, source, statistics, do_filter in denoise_aovs:
-        #         params = {}
-        #         if source:
-        #             params['string source'] = source
-        #         if statistics:
-        #             params['string statistics'] = statistics
-        #         if do_filter:
-        #             params['string filter'] = rm.pixelfilter
-        #         ri.DisplayChannel('%s %s' % (declare_type, aov), params)
-
-        #     # output denoise_data.exr
-        #     image_base, ext = main_display.rsplit('.', 1)
-        #     ri.Display('+' + image_base + '.variance.exr', 'openexr',
-        #                "Ci,a,mse,albedo,albedo_var,diffuse,diffuse_mse,specular,specular_mse,z,z_var,normal,normal_var,forward,backward",
-        #                {"string storage": "tiled"})

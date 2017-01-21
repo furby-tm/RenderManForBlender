@@ -15,7 +15,7 @@ def rib(v, type_hint=None):
     if type_hint == 'color':
         return list(v)[:3]
 
-    if type(v) in (mathutils.Vector, mathutils.Color) or\
+    elif type(v) in (mathutils.Vector, mathutils.Color) or\
             v.__class__.__name__ == 'bpy_prop_array'\
             or v.__class__.__name__ == 'Euler':
         # BBM modified from if to elif
