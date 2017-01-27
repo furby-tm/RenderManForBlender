@@ -31,7 +31,7 @@ class RendermanRenderEngine(bpy.types.RenderEngine):
     def render(self, scene):
         ''' Start the render '''
         if self.render_pass:
-            self.render_pass.render(self)
+            self.render_pass.render()
 
     def view_update(self, context=None):
         ''' If this is a viewport render update any data via the render pass. '''

@@ -76,7 +76,7 @@ class RendermanRenderLayerSettings(RendermanBasePropertyGroup):
             ri.Display(paths['main_image'], display_driver, "rgba", {})
             output_files.append(paths['main_image'])
         else:
-            ri.Display('null', 'null', "rgba", {})
+            ri.Display('null', 'it', "rgba", {})
 
         # rm_rl = self.render_layers.get(render_layer.name, None)
 
