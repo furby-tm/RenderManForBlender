@@ -30,6 +30,14 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         as well as the methods for caching any data under it'''
     ### scene properties ###
 
+    # display settings
+    render_into = EnumProperty(
+        name="Render to",
+        description="Render to blender or external framebuffer",
+        items=[('blender', 'Blender', 'Render to the Image Editor'),
+               ('it', 'it', 'External framebuffer display (must have RMS installed)')],
+        default='blender')
+
     # sampling
     pixel_variance = FloatProperty(
         name="Pixel Variance",
