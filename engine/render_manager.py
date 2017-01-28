@@ -28,8 +28,11 @@ import os.path
 import bpy
 import time
 import traceback
-from ..util.util import get_addon_prefs, init_env, user_path, get_path_list_converted, find_it_path
 import subprocess
+import asyncio
+
+from ..util.util import get_addon_prefs, init_env, user_path, get_path_list_converted, find_it_path
+from .dspy_server import DisplayServer
 
 PRMAN_INITED = False
 
@@ -56,8 +59,7 @@ class RenderManager(object):
         elif engine and engine.is_preview:
             self.display_driver = 'openexr'
         else:
-            self.display_driver = 'it'
-            #self.display_driver = scene.renderman.render_into
+            self.display_driver = scene.renderman.render_into
 
         # pass addon prefs to init_envs
         init_env()
@@ -169,7 +171,8 @@ class RenderManager(object):
             Also reports status
         '''
         base_dir = self.paths['scene_output_dir']
-
+        loop = asyncio.new_event_loop()
+            
         if self.display_driver == 'it':
             it_path = find_it_path()
             if not it_path:
@@ -179,50 +182,58 @@ class RenderManager(object):
                 environ = os.environ.copy()
                 subprocess.Popen([it_path], env=environ, shell=True)
         elif self.display_driver == 'socket':
-            loop = asyncio.new_event_loop()
             driver_socket_port = 55557
             render = self.scene.render    
             os.environ['DSPYSOCKET_PORT'] = str(driver_socket_port)
+            server = DisplayServer(self.engine, driver_socket_port, prman)
+            server.start(loop)
 
-        pct = 0
-
-        def myhandler(code, level, msg):
-            xcpt = msg.split()
-            if xcpt[0] == "R90000":
-                pct = int(xcpt[1].split("%")[0])
+        async def check_status():
+            started = False
+            pct = 0
+            # loop while rendering has started and pct returned to 0
+            while True:
+                await asyncio.sleep(.01)
+                if started and pct == 0:
+                    break
                 self.engine.update_progress(pct/100)
-            else:
-                print("myHandler %d %d %s" % (code, level, msg))
+                if self.engine.test_break():
+                    self.ri.ArchiveRecord(
+                        "structure", self.ri.STREAMMARKER + "END")
+                    prman.RicFlush("END", 0, self.ri.SUSPENDRENDERING)
+                    loop.stop()
+                    break
+                pct = prman.RicGetProgress()
+                if not started and pct > 0:
+                    started = True
+            
+            if self.display_driver == 'it':
+                loop.stop()
         
         try:
             prman.Init()
             self.ri = prman.Ri()
             
-            self.ri.ErrorHandler(myhandler)
-            self.ri.Begin("launch:prman? -ctrl $ctrlin $ctrlout -t:-1 -Progress -xcpt $xcptin")
+            self.ri.Begin("launch:prman? -ctrl $ctrlin $ctrlout -t:-1")
             self.frame_rib()
             
-            started = False
-            pct = 0
-            # loop while rendering has started and pct returned to 0
-            while True:
-                time.sleep(.1)
-                if started and pct == 0:
-                    break
-                if self.engine.test_break():
-                    self.ri.ArchiveRecord(
-                        "structure", self.ri.STREAMMARKER + "END")
-                    prman.RicFlush("END", 0, self.ri.SUSPENDRENDERING)
-                    break
-                pct = prman.RicGetProgress()
-                if not started and pct > 0:
-                    started = True
-
+            print('about to loop')
+            asyncio.set_event_loop(loop)
+            asyncio.Task(check_status())
+            loop.run_forever()
+            print('done loop')
+            self.engine.update_progress(1)
+            
+            if self.display_driver == 'socket':
+                server.stop(loop)
+            
             self.ri.End()
             del self.ri
             prman.Cleanup()
 
         except Exception as err:
+            if self.display_driver == 'socket':
+                server.stop(loop)
             self.ri = None
             prman.Cleanup()
             self.engine.report({'ERROR'}, 'Rib gen error: ' + traceback.format_exc())

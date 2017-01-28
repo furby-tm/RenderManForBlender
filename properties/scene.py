@@ -34,9 +34,9 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
     render_into = EnumProperty(
         name="Render to",
         description="Render to blender or external framebuffer",
-        items=[('blender', 'Blender', 'Render to the Image Editor'),
+        items=[('socket', 'Blender', 'Render to the Image Editor'),
                ('it', 'it', 'External framebuffer display (must have RMS installed)')],
-        default='blender')
+        default='socket')
 
     # sampling
     pixel_variance = FloatProperty(
@@ -264,6 +264,7 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         ri.FrameBegin(scene.frame_current)
         ri.Integrator("PxrDefault", 'inter', {})
         ri.Hider("raytrace", {'int minsamples': 128, 'int maxsamples': 128})
+        ri.Format(960, 540, 1)
         # self.export_render_settings(ri)
         #export_default_bxdf(ri, "default")
         #export_materials_archive(ri, rpass, scene)
