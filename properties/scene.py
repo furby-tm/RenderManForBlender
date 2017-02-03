@@ -265,13 +265,16 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         ri.Integrator("PxrDefault", 'inter', {})
         ri.Hider("raytrace", {'int minsamples': 128, 'int maxsamples': 128})
         ri.Format(960, 540, 1)
-        # self.export_render_settings(ri)
+        
+        #self.export_render_settings(ri)
+        self.export_camera(ri, **kwargs)
         #export_default_bxdf(ri, "default")
         #export_materials_archive(ri, rpass, scene)
 
         # each render layer gets it's own display and world rib
         for render_layer in scene.render.layers:
             self.export_displays_for_layer(ri, render_layer, **kwargs)
+            #self.export_render_layer_camera(ri, render_layer, **kwargs)
             ri.WorldBegin()
             # if scene.world:
             #    scene.world.renderman.to_rib(ri, **kwargs)
@@ -363,6 +366,16 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
             min = 0
 
         return [min + i * shutter_interval / (segs - 1) for i in range(segs)]
+
+    def export_camera(self, ri, **kwargs):
+        ''' exports the camera for the scene '''
+        scene = self.id_data
+        camera_name = kwargs.get('camera', None)
+        camera = scene.objects[camera_name] if camera_name else scene.camera
+        
+        camera.renderman.export_camera_matrix(ri)
+        ri.Camera(camera.name, {})
+
 
     def export_displayfilters(self, ri):
         ''' calls each display filter's to_rib and exports a combiner if n > 1 '''

@@ -1,6 +1,7 @@
 from .base_classes import RendermanPropertyGroup
 from .rib_helpers import rib
 from bpy.props import *
+from mathutils import Matrix
 
 ''' Object Properties ''' 
 class RendermanObjectSettings(RendermanPropertyGroup):
@@ -75,3 +76,19 @@ class RendermanObjectSettings(RendermanPropertyGroup):
         if ob.type == 'MESH':
             return [ob.data]
         return []
+
+    def export_camera_matrix(self, ri, **kwargs):
+        ''' Exports this objects matrix as a camera matrix '''
+        mat = self.id_data.matrix_world
+        loc = mat.translation
+        rot = mat.to_euler()
+
+        s = Matrix(([1, 0, 0, 0], [0, 1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]))
+        r = Matrix.Rotation(-rot[0], 4, 'X')
+        r *= Matrix.Rotation(-rot[1], 4, 'Y')
+        r *= Matrix.Rotation(-rot[2], 4, 'Z')
+        l = Matrix.Translation(-loc)
+        m = s * r * l
+
+        ri.Transform(rib(m))
+        
