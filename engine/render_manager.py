@@ -289,4 +289,41 @@ class RenderManager(object):
         self.scene_rm.to_rib(self.ri, preview=True)
         self.ri.End()
 
+    def ipr_update(self):
+        ''' Issue any needed ipr updates for the given scene.  If nescessary rebuild the scene
+            rib and get that ready to restart '''
+        scene = self.scene
+        # these are the updates we can do
+        to_update = {}
+
+        # check if scene is updated
+        to_update['scene'] = scene if scene.is_updated else None
+
+        # check for material updates and issue them
+        to_update['materials'] = [mat for mat in bpy.data.materials if mat.is_updated]
+
+        #check if world is updated
+        to_update['world'] = scene.world if scene.world.is_updated else None
+
+        # get the lamp shaders, these don't need restart
+        to_update['lamp_shaders'] = [ob.data for ob in scene.objects if ob.type == 'LAMP' \
+             and ob.is_updated_data]
+
+        # get the lamps
+        to_update['lamps'] = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.is_updated]   
+
+        # get the camera if updated
+        to_update['camera'] = scene.camera if scene.camera.is_updated else None
+
+        # get all data items updated
+        to_update['data'] = [data for ob in scene.objects if ob.type not in ['LAMP', 'CAMERA'] \
+            for data in ob.renderman.get_updated_data_items()]
+
+        # get all updated objects
+        to_update['objects'] = [ob for ob in scene.objects if ob.is_updated]
+
+        print(to_update)
+                
+
+
     

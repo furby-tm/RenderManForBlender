@@ -35,12 +35,14 @@ class RendermanRenderEngine(bpy.types.RenderEngine):
 
     def view_update(self, context=None):
         ''' If this is a viewport render update any data via the render pass. '''
-        scene = context.scene
         if not self.render_pass:
-            self.render_pass = RenderManager(scene, engine=self, is_interactive=True)
+            print('ipr start')
+            self.render_pass = RenderManager(context.scene, engine=self, is_interactive=True)
         else:
-            self.render_pass.ipr_update(context.scene)
+            print('view_update')
+            self.render_pass.ipr_update()
 
     def view_draw(self, context=None):
         ''' Tell the Render Pass to continually update display until further notice ''' 
-        self.render_pass.ipr_draw_view(self)
+        print('view_draw')
+        #self.render_pass.ipr_draw_view(self)

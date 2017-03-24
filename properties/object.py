@@ -174,6 +174,10 @@ class RendermanObjectSettings(RendermanPropertyGroup):
             return [ob.data]
         return []
 
+    def get_updated_data_items(self):
+        ''' Gets any data blocks on this object, such as mesh or particle systems '''
+        return [data for data in self.get_data_items() if data.is_updated]
+
     def export_camera_matrix(self, ri, **kwargs):
         ''' Exports this objects matrix as a camera matrix '''
         mat = self.id_data.matrix_world
