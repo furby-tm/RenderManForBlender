@@ -263,7 +263,7 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
 
         ri.FrameBegin(scene.frame_current)
         ri.Integrator("PxrDefault", 'inter', {})
-        ri.Hider("raytrace", {'int minsamples': 128, 'int maxsamples': 128})
+        ri.Hider("raytrace", {'int minsamples': 128, 'int maxsamples': 128, 'int incremental': 1})
         ri.Format(960, 540, 1)
         
         #self.export_render_settings(ri)
