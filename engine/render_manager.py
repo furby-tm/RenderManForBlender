@@ -217,11 +217,9 @@ class RenderManager(object):
             self.ri.Begin("launch:prman? -ctrl $ctrlin $ctrlout -t:-1")
             self.frame_rib()
             
-            print('about to loop')
             asyncio.set_event_loop(loop)
             asyncio.Task(check_status())
             loop.run_forever()
-            print('done loop')
             self.engine.update_progress(1)
             
             if self.display_driver == 'socket':

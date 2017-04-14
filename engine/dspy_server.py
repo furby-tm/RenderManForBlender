@@ -19,18 +19,6 @@ import numpy as np
 IMAGE_DATA = 104
 IMAGE_END = 105
 
-def reverse_rows(width, height):
-    for y in range(height):
-        for x in range(width):
-            yield ((height - y - 1) * width + x)*4
-    #return [((height - y - 1) * width + x)*4 for y in range(height) for x in range(width)]
-
-def get_pixel_data(pixel_data, width, height):
-    return [(pixel_data[i+1], 
-                pixel_data[i+2], 
-                pixel_data[i+3], 
-                pixel_data[i]) for i in reverse_rows(width,height)]
-
 def reversed(buffer, width, height):
     return np.flipud(buffer).reshape((width+1)*(height+1), 4)
 
@@ -53,13 +41,14 @@ class DisplayServer:
         # kill client connections or to broadcast some data to all
         # clients...
         self.clients = {} # task -> (reader, writer)
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
         self.reading = False
         self.process_status = None
         self.process_time = 0
         self.prman = prman
         self.buffer = []
         self.fast_mode = True
+        self.done = False
 
     def _accept_client(self, client_reader, client_writer):
         """
@@ -69,13 +58,10 @@ class DisplayServer:
         """
 
         # start a new Task to handle this specific client connection
-        print('accepting client')
-
         task = asyncio.Task(self._handle_client(client_reader, client_writer))
         self.clients[task] = (client_reader, client_writer)
 
         def client_done(task):
-            print("client task done:", task, file=sys.stderr)
             if len(self.clients) == 1:
                 loop = asyncio.get_event_loop()
                 loop.stop()
@@ -83,23 +69,13 @@ class DisplayServer:
 
         task.add_done_callback(client_done)
 
-    def process_bucket(self, w_xmin, w_xmax, w_ymin, w_ymax, pixels):
-        t = time.time()
-        width = w_xmax - w_xmin + 1
-        height = w_ymax - w_ymin + 1
 
-        pixels = np.array(struct.unpack("f" * self.num_channels * width * height, pixels)).reshape((height, width, 4))
-        tmp = np.copy(pixels[:,:, 0])
-        pixels[:,:, 0] = pixels[:,:, 3]
-        pixels[:,:, 3] = tmp
-        if self.fast_mode:
-            self.buffer[w_ymin: w_ymax + 1, w_xmin: w_xmax+1] = pixels
-        else:
-            result = self.engine.begin_result(w_xmin, self.ymax - w_ymax, width, height)
-            result.layers[0].passes[0].rect = [(pix[1], pix[2], pix[3], pix[0]) for pix in [struct.unpack("f"* self.num_channels, pixels[4*i:4*i+16]) for i in reverse_rows(width, height)]]#copy_buffer(pixel_data))
+    def draw_buffer(self):
+        while not self.done:
+            time.sleep(5.0)
+            result = self.engine.begin_result(0, 0, self.xmax + 1, self.ymax + 1)
+            result.layers[0].passes[0].rect = self.buffer
             self.engine.end_result(result)
-        self.process_time += time.time() - t
-        self.prman.RicProcessCallbacks()
 
     async def _handle_client(self, client_reader, client_writer):
         """
@@ -108,7 +84,6 @@ class DisplayServer:
         a main loop that reads a line with a request and then sends
         out one or more lines back to the client with the result.
         """
-        print('starting client')
         sep = b';'
         is_ready = False
         loop = asyncio.get_event_loop()
@@ -120,11 +95,7 @@ class DisplayServer:
                 data = (await client_reader.read(1024)).split(sep)
 
                 image_name = data[0].decode()[1:]
-                #image_name = (yield from client_reader.readuntil(sep)).decode("utf-8")
-                #print("Image name", image_name)
-                #dspy_params = (yield from client_reader.readuntil(sep)).decode("utf-8")
                 dspy_params = data[2]
-                #print("dspy params", dspy_params)
                 
                 xmin, xmax, ymin, ymax, a_len, z_len, channel_len, num_channels, merge = struct.unpack("!IIIIIIIIb", data[2][1:])
                 pixel_size = int(a_len/8) + int(z_len/8) + int(channel_len/8 * num_channels) #bits ->bytes
@@ -133,14 +104,17 @@ class DisplayServer:
                 pixel_size = num_channels * 4
                 image_stride = (xmax - xmin + 1)*pixel_size
                 
-                if self.fast_mode:
-                    self.buffer = np.array([(0.0, 0.0, 0.0, 0.0)] * ((xmax+1) * (ymax+1))).reshape(ymax + 1,xmax +1, 4)
-                    self.result = self.engine.begin_result(0, 0, xmax, ymax)
-                    
                 self.ymax = ymax
                 self.xmax = xmax
                 self.num_channels = num_channels
                 self.pixel_size = pixel_size
+
+                if self.fast_mode:
+                    self.buffer = np.array([(0.0, 0.0, 0.0, 0.0)] * ((xmax+1) * (ymax+1)))
+                    self.use_buffer = np.flipud(self.buffer.reshape(ymax + 1,xmax +1, 4))
+                    buff_task = loop.run_in_executor(self.executor, self.draw_buffer)
+                    
+                
                 is_ready = True
 
                 # send that we're ready
@@ -150,20 +124,22 @@ class DisplayServer:
                 data = (await client_reader.read(2))
                 cmd, other = struct.unpack("!bb", data)
 
-                #if self.fast_mode and time.time() - last_update > 1:
-                    #self.result.layers[0].passes[0].rect = reversed(self.buffer, self.xmax, self.ymax)
-                    #self.engine.update_result(self.result)
-                    #last_update = time.time()
                 if cmd == IMAGE_DATA:
                     data = (await client_reader.readexactly(16))
                     w_xmin, w_xmax, w_ymin, w_ymax = struct.unpack("!IIII", data)
-                    num_pixels = (w_xmax - w_xmin + 1)*(w_ymax - w_ymin + 1)
-                    buffer_size = num_pixels*pixel_size
-                    pixels = (await client_reader.readexactly(buffer_size))
-                    loop.run_in_executor(self.executor, self.process_bucket, w_xmin, w_xmax, w_ymin, w_ymax, pixels)
+                    w_xmax += 1 
+                    w_ymax += 1
+                    width = w_xmax - w_xmin
+                    height = w_ymax - w_ymin
+
+                    num_pixels = (w_xmax - w_xmin)*(w_ymax - w_ymin)
+                    pixels = (await client_reader.readexactly(num_pixels*pixel_size))
+                    self.use_buffer[w_ymin: w_ymax, w_xmin: w_xmax] = np.fromstring(pixels, dtype="f", count=num_pixels*4).reshape((height, width, 4))[:,:,[1,2,3,0]]
+                    
 
                 elif cmd == IMAGE_END:
-                    display_done = True
+                    #loop.run_in_executor(self.executor, self.process_bucket, -1, -1, -1, -1, "")
+                    #self.done = True
                     return
 
     def start(self, loop):
@@ -174,7 +150,6 @@ class DisplayServer:
         called.  This method runs the loop until the server sockets
         are ready to accept connections.
         """
-        print('starting server')
         self.server = loop.run_until_complete(
             asyncio.streams.start_server(self._accept_client,
                                          '127.0.0.1', self.port,
@@ -187,14 +162,13 @@ class DisplayServer:
         This method runs the loop until the server sockets are closed.
         """
         if self.server is not None:
-            self.executor.shutdown(wait=True)
-            print('process time ', self.process_time)
+            self.executor.shutdown(wait=False)
             self.server.close()
             loop.run_until_complete(self.server.wait_closed())
             if self.fast_mode:
-                self.result.layers[0].passes[0].rect = reversed(self.buffer, self.xmax, self.ymax)
-                self.engine.update_result(self.result)
-                self.engine.end_result(self.result)
+                result = self.engine.begin_result(0, 0, self.xmax + 1, self.ymax + 1)
+                result.layers[0].passes[0].rect = self.buffer
+                self.engine.end_result(result)
             self.server = None
 
 
