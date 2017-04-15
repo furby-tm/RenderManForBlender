@@ -214,20 +214,34 @@ class RenderManager(object):
             prman.Init()
             self.ri = prman.Ri()
             
-            self.ri.Begin("launch:prman? -ctrl $ctrlin $ctrlout -t:-1")
-            self.frame_rib()
-            
-            asyncio.set_event_loop(loop)
-            asyncio.Task(check_status())
-            loop.run_forever()
-            self.engine.update_progress(1)
-            
-            if self.display_driver == 'socket':
-                server.stop(loop)
-            
-            self.ri.End()
-            del self.ri
-            prman.Cleanup()
+            if self.is_interactive:
+                
+
+                self.ri.Begin("launch:prman? -ctrl $ctrlin $ctrlout -t:-1 -dspyserver it")
+                
+                self.ri.ArchiveBegin("frame_rib")
+                self.frame_rib()
+                self.ri.ArchiveEnd() 
+
+                # record archive of frame
+                self.interactive_initial_rib()
+                self.is_interactive_ready = True   
+
+            else:
+                self.ri.Begin("launch:prman? -ctrl $ctrlin $ctrlout -t:-1")
+                self.frame_rib()
+                
+                asyncio.set_event_loop(loop)
+                asyncio.Task(check_status())
+                loop.run_forever()
+                self.engine.update_progress(1)
+                
+                if self.display_driver == 'socket':
+                    server.stop(loop)
+                
+                self.ri.End()
+                del self.ri
+                prman.Cleanup()
 
         except Exception as err:
             if self.display_driver == 'socket':
@@ -235,6 +249,7 @@ class RenderManager(object):
             self.ri = None
             prman.Cleanup()
             self.engine.report({'ERROR'}, 'Rib gen error: ' + traceback.format_exc())
+
 
     def is_prman_running(self):
         ''' Uses Rix interfaces to get progress on running IPR or render '''
@@ -319,8 +334,41 @@ class RenderManager(object):
 
         # get all updated objects
         to_update['objects'] = [ob for ob in scene.objects if ob.is_updated]
+        if len(to_update['objects']):
+            self.ri.ArchiveBegin("frame_rib")
+            self.frame_rib()
+            self.ri.ArchiveEnd() 
 
-        print(to_update)
+            self.ri.EditWorldEnd()
+            self.ri.EditWorldBegin("frame_rib", {"string rerenderer": "raytrace"})
+            self.ri.Option('rerender', {'int[2] lodrange': [0, 3]})
+            #self.ri.ReadArchive("frame_rib")
+
+            self.ri.ArchiveRecord("structure", self.ri.STREAMMARKER + "_initial")
+            prman.RicFlush("_initial", 0, self.ri.FINISHRENDERING)
+
+            self.ri.EditBegin('null', {})
+            self.ri.EditEnd()
+
+    def interactive_initial_rib(self):
+        self.ri.Display('rerender', 'it', 'rgba')
+        self.ri.Hider('raytrace', {
+            'int maxsamples': 0,
+                'int minsamples': 128,
+                'int incremental': 1
+            })
+
+        self.ri.EditWorldBegin("frame_rib", {"string rerenderer": "raytrace"})
+        self.ri.Option('rerender', {'int[2] lodrange': [0, 3]})
+        #self.ri.ReadArchive("frame_rib")
+
+        self.ri.ArchiveRecord("structure", self.ri.STREAMMARKER + "_initial")
+        prman.RicFlush("_initial", 0, self.ri.FINISHRENDERING)
+
+        self.ri.EditBegin('null', {})
+        self.ri.EditEnd()
+
+        
                 
 
 

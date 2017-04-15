@@ -38,6 +38,10 @@ class RendermanRenderEngine(bpy.types.RenderEngine):
         if not self.render_pass:
             print('ipr start')
             self.render_pass = RenderManager(context.scene, engine=self, is_interactive=True)
+            # write rib
+            self.render_pass.write_rib()
+            # start ipr
+            self.render_pass.render()
         else:
             print('view_update')
             self.render_pass.ipr_update()
