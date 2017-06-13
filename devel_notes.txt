@@ -1,6 +1,6 @@
 Notes - 
-    Move to everything class based.  
-    New style classes.
+    Move to everything class based.  Around 
+    Python New style classes.
     One Class per file
     Do ribgen through property groups (i.e object.renderman class rib gens object)
     Move to new IPR through viewport display
@@ -30,15 +30,15 @@ general structure
        - Add more simple operators like "add renderman light" etc
         
     /ui 
-        - one class per panel
+        - one class/file per panel Only put panels here that spread over multiple property groups here, aka general panels
 
     /engine
         engine.py - use viewport display instead of IPR
-        rpass.py
-        spool.py
+        rpass.py - handles render setup/running and IPR updating
+        spool.py - create alf files and spool
         server.py - display server 
 
-    /properties
+    /properties - fully atomic property groups that correspond to the type they are mapped to.  Each property group should have a draw() and to_rib() method.  Also put corresponding panels in same file.  For example the object properties panel goes in object.py
         base_id.py - base for all id property groups.  this would define methods for rib gen of this property group
         object.py - rib gen for object 
         particle.py - particle system ribgen
