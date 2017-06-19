@@ -24,6 +24,8 @@
 # ##### END MIT LICENSE BLOCK #####
 
 """ Base module which loads the sub components and sets up app handlers """
+import bpy
+import importlib as imp
 
 bl_info = {
     "name": "RenderMan For Blender",
@@ -36,19 +38,18 @@ bl_info = {
     "category": "Render"}
 
 # list of modules to import to register.  Don't need to register util
-#SUBMODULES = ['engine', 'operators', 'preferences', 'properties', 'ui']
 SUBMODULES = ['engine', 'properties', 'preferences', 'ui']
 
-import bpy
-import importlib as imp
 for module in SUBMODULES:
     imp.import_module('.' + module, package=__name__)
+
 
 # register the module and subclasses
 def register():
     bpy.utils.register_module(__name__)
     # add the pointer properties to things
     properties.add_properties()
+
 
 def unregister():
     bpy.utils.unregister_module(__name__)

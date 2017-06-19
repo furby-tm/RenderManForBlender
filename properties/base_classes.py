@@ -1,12 +1,14 @@
 import bpy
 from bpy.props import *
 
-''' Base classes that Object, Mesh, Lamp, etc property groups should subclass ''' 
+''' Base classes that Object, Mesh, Lamp, etc property groups should subclass '''
+
 
 class RendermanBasePropertyGroup(bpy.types.PropertyGroup):
     ''' Base class, to be used for scene properties'''
+
     def to_rib(self, ri, **kwargs):
-        ''' Convert this item to ri calls ''' 
+        ''' Convert this item to ri calls '''
         pass
 
     def get_archive_filename(self, **kwargs):
@@ -55,6 +57,6 @@ class RendermanPropertyGroup(RendermanBasePropertyGroup):
         description="Number of motion samples to take for motion blur.  Set this higher if motion blur is choppy on fast moving items.",
         min=2, max=16, default=2)
 
+
 class RendermanPlugin(RendermanPropertyGroup):
     pass
-

@@ -3,7 +3,9 @@ from .rib_helpers import rib
 from bpy.props import *
 from mathutils import Matrix
 
-''' Object Properties ''' 
+''' Object Properties '''
+
+
 class RendermanObjectSettings(RendermanPropertyGroup):
     ''' Object Properties, also handles ribgen for mesh data '''
     ### object specific properties ###
@@ -69,7 +71,7 @@ class RendermanObjectSettings(RendermanPropertyGroup):
         description="Number of motion samples to take for multi-segment motion blur.  This should be raised if you notice segment artifacts in blurs.",
         min=2, max=16, default=2)
 
-    #visibility parameters
+    # visibility parameters
     visibility_camera = BoolProperty(
         name="Visible to Camera Rays",
         description="Object visibility to Camera Rays.",
@@ -149,7 +151,7 @@ class RendermanObjectSettings(RendermanPropertyGroup):
     ### overrides of base class methods ###
     def to_rib(self, ri, **kwargs):
         ''' creates an attribute block for the object, reads in the data archive(s)
-            and recursively calls any children to_ribs''' 
+            and recursively calls any children to_ribs'''
         ob = self.id_data
         ri.AttributeBegin()
         ri.Attribute("identifier", {"string name": ob.name})
@@ -158,7 +160,8 @@ class RendermanObjectSettings(RendermanPropertyGroup):
         ri.ConcatTransform(rib(m))
 
         for data in self.get_data_items():
-            archive_name = data.renderman.get_archive_filename(paths=kwargs['paths'], ob=ob)
+            archive_name = data.renderman.get_archive_filename(
+                paths=kwargs['paths'], ob=ob)
             if archive_name:
                 ri.ReadArchive(archive_name)
 
@@ -192,4 +195,3 @@ class RendermanObjectSettings(RendermanPropertyGroup):
         m = s * r * l
 
         ri.Transform(rib(m))
-        

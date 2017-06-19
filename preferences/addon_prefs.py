@@ -37,9 +37,10 @@ from ..util.util import get_installed_rendermans,\
 OUT_PATH = 'C:/tmp/renderman_for_blender/{blend}' if sys.platform == ("win32") else \
     '/tmp/renderman_for_blender/{blend}'
 
+
 class PRManAddonPrefs(AddonPreferences):
     ''' Addon prefences with it's own draw function'''
-    bl_idname = __package__.split('.')[0] # to match upper addon name
+    bl_idname = __package__.split('.')[0]  # to match upper addon name
 
     def find_installed_rendermans(self, context):
         ''' populate the enum for installed rendermans '''
@@ -69,7 +70,7 @@ class PRManAddonPrefs(AddonPreferences):
         description="Path to RenderMan Pro Server installation folder",
         subtype='DIR_PATH',
         default='')
-    
+
     draw_ipr_text = BoolProperty(
         name="Draw IPR Text",
         description="Draw notice on View3D when IPR is active",
@@ -140,5 +141,5 @@ class PRManAddonPrefs(AddonPreferences):
         paths_sub.prop(self, 'path_main_image')
         paths_sub.prop(self, 'path_aov_image')
         paths_sub.prop(self, 'path_texture_output')
-        
+
         layout.prop(self, 'draw_ipr_text')

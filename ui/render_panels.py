@@ -4,9 +4,12 @@ from bpy.types import Panel
 from ..resources.icons.icons import load_icons
 
 '''This file defines the panels that appear in the Render ui tab'''
+
+
 class RENDER_PT_renderman_render(PRManPanel, Panel):
     '''This panel covers the settings for Renderman's motion blur'''
     bl_label = "Render"
+
     def draw(self, context):
         #icons = load_icons()
         layout = self.layout
@@ -48,10 +51,11 @@ class RENDER_PT_renderman_render(PRManPanel, Panel):
         row = col.row()
         row.prop(rm, "render_into", text="Render To")
 
-        #layout.separator()
+        # layout.separator()
         #col = layout.column()
         #col.prop(context.scene.renderman, "render_selected_objects_only")
         #col.prop(rm, "do_denoise")
+
 
 class RENDER_PT_renderman_motion_blur(PRManPanel, Panel):
     '''This panel covers the settings for Renderman's motion blur'''
@@ -146,8 +150,8 @@ class RENDER_PT_renderman_advanced_settings(PRManPanel, Panel):
         col = layout.column()
         row = col.row()
         row.prop(rm, "use_statistics", text="Output stats")
-        #row.operator('rman.open_stats')
-        #col.operator('rman.open_rib')
+        # row.operator('rman.open_stats')
+        # col.operator('rman.open_rib')
         row = col.row()
         col.prop(rm, "always_generate_textures")
         col.prop(rm, "lazy_rib_gen")

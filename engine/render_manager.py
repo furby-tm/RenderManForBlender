@@ -42,13 +42,14 @@ def init_prman():
     making calls from multiple threads to ri '''
     global prman
     import prman
-    global PRMAN_INITED 
+    global PRMAN_INITED
     PRMAN_INITED = True
 
 
 class RenderManager(object):
     """ RenderManager takes care of all the actual work for rib gen,
     and has hooks to launch processes"""
+
     def __init__(self, scene, engine=None, is_interactive=False, external_render=False):
         ''' Instantiate the Render Manager and set the variables needed for it '''
         self.scene = scene
@@ -95,7 +96,7 @@ class RenderManager(object):
         try:
             prman.Init()
             self.ri = prman.Ri()
-            
+
             if self.is_preview:
                 self.gen_preview_rib()
             else:
@@ -106,8 +107,8 @@ class RenderManager(object):
         except Exception as err:
             self.ri = None
             prman.Cleanup()
-            self.engine.report({'ERROR'}, 'Rib gen error: ' + traceback.format_exc())
-    
+            self.engine.report(
+                {'ERROR'}, 'Rib gen error: ' + traceback.format_exc())
 
     def initialize_paths(self, scene):
         ''' Expands all the output paths for this pass and makes dirs for outputs '''
@@ -118,7 +119,8 @@ class RenderManager(object):
         out = user_path(addon_prefs.out, scene=scene)
         self.paths['scene_output_dir'] = out
 
-        self.paths['frame_rib'] = user_path(addon_prefs.path_rib_output, scene=scene, out=out)
+        self.paths['frame_rib'] = user_path(
+            addon_prefs.path_rib_output, scene=scene, out=out)
         self.paths['texture_output'] = user_path(addon_prefs.path_texture_output, scene=scene,
                                                  out=out)
 
@@ -133,10 +135,12 @@ class RenderManager(object):
         self.paths['texture'] = [self.paths['texture_output']]
 
         if self.is_preview:
-            previewdir = os.path.join(self.paths['scene_output_dir'], "preview")
+            previewdir = os.path.join(
+                self.paths['scene_output_dir'], "preview")
             self.paths['frame_rib'] = os.path.join(previewdir, "preview.rib")
             self.paths['main_image'] = os.path.join(previewdir, "preview.tif")
-            self.paths['scene_output_dir'] = os.path.dirname(self.paths['frame_rib'])
+            self.paths['scene_output_dir'] = os.path.dirname(
+                self.paths['frame_rib'])
             if not os.path.exists(previewdir):
                 os.mkdir(previewdir)
 
@@ -172,18 +176,18 @@ class RenderManager(object):
         '''
         base_dir = self.paths['scene_output_dir']
         loop = asyncio.new_event_loop()
-            
+
         if self.display_driver == 'it':
             it_path = find_it_path()
             if not it_path:
                 self.engine.report({"ERROR"},
-                              "Could not find 'it'. Check your RenderMan installation.")
+                                   "Could not find 'it'. Check your RenderMan installation.")
             else:
                 environ = os.environ.copy()
                 subprocess.Popen([it_path], env=environ, shell=True)
         elif self.display_driver == 'socket':
             driver_socket_port = 55557
-            render = self.scene.render    
+            render = self.scene.render
             os.environ['DSPYSOCKET_PORT'] = str(driver_socket_port)
             server = DisplayServer(self.engine, driver_socket_port, prman)
             server.start(loop)
@@ -196,7 +200,7 @@ class RenderManager(object):
                 await asyncio.sleep(.01)
                 if started and pct == 0:
                     break
-                self.engine.update_progress(pct/100)
+                self.engine.update_progress(pct / 100)
                 if self.engine.test_break():
                     self.ri.ArchiveRecord(
                         "structure", self.ri.STREAMMARKER + "END")
@@ -206,39 +210,39 @@ class RenderManager(object):
                 pct = prman.RicGetProgress()
                 if not started and pct > 0:
                     started = True
-            
+
             if self.display_driver == 'it':
                 loop.stop()
-        
+
         try:
             prman.Init()
             self.ri = prman.Ri()
-            
-            if self.is_interactive:
-                
 
-                self.ri.Begin("launch:prman? -ctrl $ctrlin $ctrlout -t:-1 -dspyserver it")
-                
+            if self.is_interactive:
+
+                self.ri.Begin(
+                    "launch:prman? -ctrl $ctrlin $ctrlout -t:-1 -dspyserver it")
+
                 self.ri.ArchiveBegin("frame_rib")
                 self.frame_rib()
-                self.ri.ArchiveEnd() 
+                self.ri.ArchiveEnd()
 
                 # record archive of frame
                 self.interactive_initial_rib()
-                self.is_interactive_ready = True   
+                self.is_interactive_ready = True
 
             else:
                 self.ri.Begin("launch:prman? -ctrl $ctrlin $ctrlout -t:-1")
                 self.frame_rib()
-                
+
                 asyncio.set_event_loop(loop)
                 asyncio.Task(check_status())
                 loop.run_forever()
                 self.engine.update_progress(1)
-                
+
                 if self.display_driver == 'socket':
                     server.stop(loop)
-                
+
                 self.ri.End()
                 del self.ri
                 prman.Cleanup()
@@ -248,8 +252,8 @@ class RenderManager(object):
                 server.stop(loop)
             self.ri = None
             prman.Cleanup()
-            self.engine.report({'ERROR'}, 'Rib gen error: ' + traceback.format_exc())
-
+            self.engine.report(
+                {'ERROR'}, 'Rib gen error: ' + traceback.format_exc())
 
     def is_prman_running(self):
         ''' Uses Rix interfaces to get progress on running IPR or render '''
@@ -259,12 +263,14 @@ class RenderManager(object):
         ''' sets up for rib generation
         '''
         time_start = time.time()
-        rib_options = {"string format": "ascii", "string asciistyle": "indented,wide"}
+        rib_options = {"string format": "ascii",
+                       "string asciistyle": "indented,wide"}
         self.ri.Option("rib", rib_options)
         self.cache_archives()
-        #self.frame_rib()
+        # self.frame_rib()
         if self.engine:
-            self.engine.report({"INFO"}, "RIB generation took %s" % str(time.time() - time_start))
+            self.engine.report({"INFO"}, "RIB generation took %s" %
+                               str(time.time() - time_start))
 
     def cache_archives(self, clear_motion=False):
         ''' Does all the caching nescessary for generating a render rib, first caches motion blur 
@@ -278,22 +284,24 @@ class RenderManager(object):
                 for data in items:
                     data_rm = data.renderman
                     try:
-                        archive_filename = data_rm.get_archive_filename(paths=self.paths, ob=ob)
+                        archive_filename = data_rm.get_archive_filename(
+                            paths=self.paths, ob=ob)
                         if archive_filename:
                             self.ri.Begin(archive_filename)
                             data_rm.to_rib(self.ri, ob=ob, scene=self.scene)
                             self.ri.End()
                     except:
-                        self.engine.report({'ERROR'}, 
-                            'Rib gen error object %s data %s: ' % (ob.name, data.name) + 
-                            traceback.format_exc())
-        
+                        self.engine.report({'ERROR'},
+                                           'Rib gen error object %s data %s: ' % (ob.name, data.name) +
+                                           traceback.format_exc())
+
         if clear_motion:
             self.scene_rm.clear_motion()
 
     def frame_rib(self):
         ''' Do the Frame_rib '''
-        self.scene_rm.to_rib(self.ri, paths=self.paths, display_driver=self.display_driver)
+        self.scene_rm.to_rib(self.ri, paths=self.paths,
+                             display_driver=self.display_driver)
         self.scene_rm.clear_motion()
 
     def gen_preview_rib(self):
@@ -313,38 +321,42 @@ class RenderManager(object):
         to_update['scene'] = scene if scene.is_updated else None
 
         # check for material updates and issue them
-        to_update['materials'] = [mat for mat in bpy.data.materials if mat.is_updated]
+        to_update['materials'] = [
+            mat for mat in bpy.data.materials if mat.is_updated]
 
-        #check if world is updated
+        # check if world is updated
         to_update['world'] = scene.world if scene.world.is_updated else None
 
         # get the lamp shaders, these don't need restart
-        to_update['lamp_shaders'] = [ob.data for ob in scene.objects if ob.type == 'LAMP' \
-             and ob.is_updated_data]
+        to_update['lamp_shaders'] = [ob.data for ob in scene.objects if ob.type == 'LAMP'
+                                     and ob.is_updated_data]
 
         # get the lamps
-        to_update['lamps'] = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.is_updated]   
+        to_update['lamps'] = [
+            ob for ob in scene.objects if ob.type == 'LAMP' and ob.is_updated]
 
         # get the camera if updated
         to_update['camera'] = scene.camera if scene.camera.is_updated else None
 
         # get all data items updated
-        to_update['data'] = [data for ob in scene.objects if ob.type not in ['LAMP', 'CAMERA'] \
-            for data in ob.renderman.get_updated_data_items()]
+        to_update['data'] = [data for ob in scene.objects if ob.type not in ['LAMP', 'CAMERA']
+                             for data in ob.renderman.get_updated_data_items()]
 
         # get all updated objects
         to_update['objects'] = [ob for ob in scene.objects if ob.is_updated]
         if len(to_update['objects']):
             self.ri.ArchiveBegin("frame_rib")
             self.frame_rib()
-            self.ri.ArchiveEnd() 
+            self.ri.ArchiveEnd()
 
             self.ri.EditWorldEnd()
-            self.ri.EditWorldBegin("frame_rib", {"string rerenderer": "raytrace"})
+            self.ri.EditWorldBegin(
+                "frame_rib", {"string rerenderer": "raytrace"})
             self.ri.Option('rerender', {'int[2] lodrange': [0, 3]})
-            #self.ri.ReadArchive("frame_rib")
+            # self.ri.ReadArchive("frame_rib")
 
-            self.ri.ArchiveRecord("structure", self.ri.STREAMMARKER + "_initial")
+            self.ri.ArchiveRecord(
+                "structure", self.ri.STREAMMARKER + "_initial")
             prman.RicFlush("_initial", 0, self.ri.FINISHRENDERING)
 
             self.ri.EditBegin('null', {})
@@ -354,22 +366,16 @@ class RenderManager(object):
         self.ri.Display('rerender', 'it', 'rgba')
         self.ri.Hider('raytrace', {
             'int maxsamples': 0,
-                'int minsamples': 128,
-                'int incremental': 1
-            })
+            'int minsamples': 128,
+            'int incremental': 1
+        })
 
         self.ri.EditWorldBegin("frame_rib", {"string rerenderer": "raytrace"})
         self.ri.Option('rerender', {'int[2] lodrange': [0, 3]})
-        #self.ri.ReadArchive("frame_rib")
+        # self.ri.ReadArchive("frame_rib")
 
         self.ri.ArchiveRecord("structure", self.ri.STREAMMARKER + "_initial")
         prman.RicFlush("_initial", 0, self.ri.FINISHRENDERING)
 
         self.ri.EditBegin('null', {})
         self.ri.EditEnd()
-
-        
-                
-
-
-    

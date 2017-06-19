@@ -36,6 +36,7 @@ from extensions_framework import util as efutil
 from mathutils import Matrix, Vector
 EnableDebugging = False
 
+
 class BlenderVersionError(Exception):
     pass
 
@@ -250,7 +251,7 @@ def get_path_list(rm, type):
     paths.append('@')
 
     paths.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                  "%ss" % type))
+                              "%ss" % type))
 
     return paths
 

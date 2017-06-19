@@ -6,12 +6,12 @@ from ..resources.icons.icons import load_icons
 
 class OBJECT_PT_renderman_object(PRManPanel, Panel):
     '''This panel allows the user to make modifications to the raytracing,
-	shading and visibility parameters of each Blender object.  The override
-	parameters are included in RIB output only when enabled
-	'''
+        shading and visibility parameters of each Blender object.  The override
+        parameters are included in RIB output only when enabled
+        '''
     bl_label = "Raytracing, Shading and Visibility"
     bl_context = "object"
-    
+
     def draw(self, context):
         layout = self.layout
         ob = context.object

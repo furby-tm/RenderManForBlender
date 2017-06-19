@@ -19,8 +19,10 @@ import numpy as np
 IMAGE_DATA = 104
 IMAGE_END = 105
 
+
 def reversed(buffer, width, height):
-    return np.flipud(buffer).reshape((width+1)*(height+1), 4)
+    return np.flipud(buffer).reshape((width + 1) * (height + 1), 4)
+
 
 class DisplayServer:
     """
@@ -33,14 +35,14 @@ class DisplayServer:
     """
 
     def __init__(self, engine, port, prman):
-        self.server = None # encapsulates the server sockets
+        self.server = None  # encapsulates the server sockets
         self.engine = engine
         self.port = port
         # this keeps track of all the clients that connected to our
         # server.  It can be useful in some cases, for instance to
         # kill client connections or to broadcast some data to all
         # clients...
-        self.clients = {} # task -> (reader, writer)
+        self.clients = {}  # task -> (reader, writer)
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
         self.reading = False
         self.process_status = None
@@ -69,11 +71,11 @@ class DisplayServer:
 
         task.add_done_callback(client_done)
 
-
     def draw_buffer(self):
         while not self.done:
             time.sleep(5.0)
-            result = self.engine.begin_result(0, 0, self.xmax + 1, self.ymax + 1)
+            result = self.engine.begin_result(
+                0, 0, self.xmax + 1, self.ymax + 1)
             result.layers[0].passes[0].rect = self.buffer
             self.engine.end_result(result)
 
@@ -96,46 +98,51 @@ class DisplayServer:
 
                 image_name = data[0].decode()[1:]
                 dspy_params = data[2]
-                
-                xmin, xmax, ymin, ymax, a_len, z_len, channel_len, num_channels, merge = struct.unpack("!IIIIIIIIb", data[2][1:])
-                pixel_size = int(a_len/8) + int(z_len/8) + int(channel_len/8 * num_channels) #bits ->bytes
+
+                xmin, xmax, ymin, ymax, a_len, z_len, channel_len, num_channels, merge = struct.unpack(
+                    "!IIIIIIIIb", data[2][1:])
+                pixel_size = int(a_len / 8) + int(z_len / 8) + \
+                    int(channel_len / 8 * num_channels)  # bits ->bytes
                 num_channels = num_channels + 1 if a_len > 0 else num_channels
                 num_channels = num_channels + 1 if z_len > 0 else num_channels
                 pixel_size = num_channels * 4
-                image_stride = (xmax - xmin + 1)*pixel_size
-                
+                image_stride = (xmax - xmin + 1) * pixel_size
+
                 self.ymax = ymax
                 self.xmax = xmax
                 self.num_channels = num_channels
                 self.pixel_size = pixel_size
 
                 if self.fast_mode:
-                    self.buffer = np.array([(0.0, 0.0, 0.0, 0.0)] * ((xmax+1) * (ymax+1)))
-                    self.use_buffer = np.flipud(self.buffer.reshape(ymax + 1,xmax +1, 4))
-                    buff_task = loop.run_in_executor(self.executor, self.draw_buffer)
-                    
-                
+                    self.buffer = np.array(
+                        [(0.0, 0.0, 0.0, 0.0)] * ((xmax + 1) * (ymax + 1)))
+                    self.use_buffer = np.flipud(
+                        self.buffer.reshape(ymax + 1, xmax + 1, 4))
+                    buff_task = loop.run_in_executor(
+                        self.executor, self.draw_buffer)
+
                 is_ready = True
 
                 # send that we're ready
                 client_writer.write(struct.pack("I", 0))
             else:
-                #print('receive')
+                # print('receive')
                 data = (await client_reader.read(2))
                 cmd, other = struct.unpack("!bb", data)
 
                 if cmd == IMAGE_DATA:
                     data = (await client_reader.readexactly(16))
-                    w_xmin, w_xmax, w_ymin, w_ymax = struct.unpack("!IIII", data)
-                    w_xmax += 1 
+                    w_xmin, w_xmax, w_ymin, w_ymax = struct.unpack(
+                        "!IIII", data)
+                    w_xmax += 1
                     w_ymax += 1
                     width = w_xmax - w_xmin
                     height = w_ymax - w_ymin
 
-                    num_pixels = (w_xmax - w_xmin)*(w_ymax - w_ymin)
-                    pixels = (await client_reader.readexactly(num_pixels*pixel_size))
-                    self.use_buffer[w_ymin: w_ymax, w_xmin: w_xmax] = np.fromstring(pixels, dtype="f", count=num_pixels*4).reshape((height, width, 4))[:,:,[1,2,3,0]]
-                    
+                    num_pixels = (w_xmax - w_xmin) * (w_ymax - w_ymin)
+                    pixels = (await client_reader.readexactly(num_pixels * pixel_size))
+                    self.use_buffer[w_ymin: w_ymax, w_xmin: w_xmax] = np.fromstring(
+                        pixels, dtype="f", count=num_pixels * 4).reshape((height, width, 4))[:, :, [1, 2, 3, 0]]
 
                 elif cmd == IMAGE_END:
                     #loop.run_in_executor(self.executor, self.process_bucket, -1, -1, -1, -1, "")
@@ -166,9 +173,8 @@ class DisplayServer:
             self.server.close()
             loop.run_until_complete(self.server.wait_closed())
             if self.fast_mode:
-                result = self.engine.begin_result(0, 0, self.xmax + 1, self.ymax + 1)
+                result = self.engine.begin_result(
+                    0, 0, self.xmax + 1, self.ymax + 1)
                 result.layers[0].passes[0].rect = self.buffer
                 self.engine.end_result(result)
             self.server = None
-
-

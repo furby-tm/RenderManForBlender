@@ -1,10 +1,11 @@
 import os
 from .base_classes import RendermanPropertyGroup
 
-''' Mesh Properties ''' 
+''' Mesh Properties '''
+
 
 def get_mesh(mesh, get_normals=False):
-    ''' returns the nverts, verts, P, N from a mesh for doing rib gen ''' 
+    ''' returns the nverts, verts, P, N from a mesh for doing rib gen '''
     nverts = []
     verts = []
     P = []
@@ -28,8 +29,9 @@ def get_mesh(mesh, get_normals=False):
     # return the P's minus any unconnected
     return (nverts, verts, P, N)
 
+
 class RendermanMeshSettings(RendermanPropertyGroup):
-    ''' Mesh Properties, also handles ribgen for mesh data ''' 
+    ''' Mesh Properties, also handles ribgen for mesh data '''
     ### mesh properties ###
 
     ### overrides of base class methods ###
@@ -38,7 +40,8 @@ class RendermanMeshSettings(RendermanPropertyGroup):
             else gets the mesh data and does rib gen '''
         ob = kwargs['ob']
         scene = kwargs['scene']
-        mesh = ob.to_mesh(scene, True, 'RENDER', calc_tessface=False, calc_undeformed=True)
+        mesh = ob.to_mesh(scene, True, 'RENDER',
+                          calc_tessface=False, calc_undeformed=True)
 
         primvars = {}
         (nverts, verts, P, N) = get_mesh(mesh, get_normals=True)
@@ -53,4 +56,3 @@ class RendermanMeshSettings(RendermanPropertyGroup):
         return os.path.join(path, self.id_data.name + '.rib')
 
     ### mesh specific methods ###
-    

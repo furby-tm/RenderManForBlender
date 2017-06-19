@@ -1,18 +1,19 @@
 from .base_classes import RendermanBasePropertyGroup
 from bpy.props import *
 
+
 class RendermanRenderLayerSettings(RendermanBasePropertyGroup):
     ''' When the renderman settings get added to the render layer, this is
     created.  Note these settings are stored in a collection on the scene, 
     since render layers don't take custom properties themselves.'''
-    
+
     # render layer properties
 
     render_layer = StringProperty()
-    #custom_aovs = CollectionProperty(type=RendermanAOV,
+    # custom_aovs = CollectionProperty(type=RendermanAOV,
     #                                 name='Custom AOVs')
     custom_aov_index = IntProperty(min=-1, default=-1)
-    
+
     object_group = StringProperty(name='Object Group')
     light_group = StringProperty(name='Light Group')
 
@@ -64,8 +65,8 @@ class RendermanRenderLayerSettings(RendermanBasePropertyGroup):
 
     ### renderlayer specific methods ###
     def simple_to_rib(ri, renderlayer, **kwargs):
-        ''' export all the displays for this render layer ''' 
-            
+        ''' export all the displays for this render layer '''
+
         display_driver = kwargs.get('display_driver', 'openexr')
         paths = kwargs.get('paths', {})
         output_files = paths.get('output_files', [])

@@ -263,10 +263,11 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
 
         ri.FrameBegin(scene.frame_current)
         ri.Integrator("PxrDefault", 'inter', {})
-        ri.Hider("raytrace", {'int minsamples': 128, 'int maxsamples': 128, 'int incremental': 1})
+        ri.Hider("raytrace", {'int minsamples': 128,
+                              'int maxsamples': 128, 'int incremental': 1})
         ri.Format(960, 540, 1)
-        
-        #self.export_render_settings(ri)
+
+        # self.export_render_settings(ri)
         self.export_camera(ri, **kwargs)
         #export_default_bxdf(ri, "default")
         #export_materials_archive(ri, rpass, scene)
@@ -372,10 +373,9 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         scene = self.id_data
         camera_name = kwargs.get('camera', None)
         camera = scene.objects[camera_name] if camera_name else scene.camera
-        
+
         camera.renderman.export_camera_matrix(ri)
         ri.Camera(camera.name, {})
-
 
     def export_displayfilters(self, ri):
         ''' calls each display filter's to_rib and exports a combiner if n > 1 '''
@@ -407,9 +407,9 @@ class RendermanSceneSettings(RendermanBasePropertyGroup):
         scene = self.id_data
         # there's no render layer settins
         if not rm_rl or is_interactive or is_preview:
-            RendermanRenderLayerSettings.simple_to_rib(ri, render_layer, **kwargs)
+            RendermanRenderLayerSettings.simple_to_rib(
+                ri, render_layer, **kwargs)
 
         # else we have custom rman render layer settings
         else:
             rm_rl.to_rib(ri)
-

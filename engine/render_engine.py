@@ -1,6 +1,7 @@
 import bpy
 from .render_manager import RenderManager
 
+
 class RendermanRenderEngine(bpy.types.RenderEngine):
     """ RenderEngine subclass which gives the hook to Blender that allows you to render.
         All the methods here are callbacks to blender. """
@@ -37,7 +38,8 @@ class RendermanRenderEngine(bpy.types.RenderEngine):
         ''' If this is a viewport render update any data via the render pass. '''
         if not self.render_pass:
             print('ipr start')
-            self.render_pass = RenderManager(context.scene, engine=self, is_interactive=True)
+            self.render_pass = RenderManager(
+                context.scene, engine=self, is_interactive=True)
             # write rib
             self.render_pass.write_rib()
             # start ipr
@@ -47,6 +49,6 @@ class RendermanRenderEngine(bpy.types.RenderEngine):
             self.render_pass.ipr_update()
 
     def view_draw(self, context=None):
-        ''' Tell the Render Pass to continually update display until further notice ''' 
+        ''' Tell the Render Pass to continually update display until further notice '''
         print('view_draw')
-        #self.render_pass.ipr_draw_view(self)
+        # self.render_pass.ipr_draw_view(self)
