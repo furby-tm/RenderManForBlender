@@ -667,7 +667,7 @@ class RendermanSceneSettings(bpy.types.PropertyGroup):
     custom_metadata = StringProperty(
         name="Metadata Comment",
         description="Add a custom comment to the EXR Metadata.",
-        default='')    
+        default='')
     use_statistics = BoolProperty(
         name="Statistics",
         description="Print statistics to stats.xml after render",
@@ -2603,7 +2603,7 @@ def register():
         type=RendermanMaterialSettings, name="Renderman Material Settings")
     bpy.types.Texture.renderman = PointerProperty(
         type=RendermanTextureSettings, name="Renderman Texture Settings")
-    bpy.types.Lamp.renderman = PointerProperty(
+    bpy.types.Light.renderman = PointerProperty(
         type=RendermanLightSettings, name="Renderman Light Settings")
     bpy.types.ParticleSettings.renderman = PointerProperty(
         type=RendermanParticleSettings, name="Renderman Particle Settings")

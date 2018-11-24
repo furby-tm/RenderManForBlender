@@ -31,8 +31,8 @@ import platform
 import sys
 import fnmatch
 import subprocess
+import tempfile
 from subprocess import Popen, PIPE
-from extensions_framework import util as efutil
 from mathutils import Matrix, Vector
 EnableDebugging = False
 
@@ -268,7 +268,7 @@ def get_path_list(rm, type):
 
 
 def get_real_path(path):
-    return os.path.realpath(efutil.filesystem_path(path))
+    return os.path.realpath(tempfile.gettempdir(path))
 
 
 # Convert env variables to full paths.

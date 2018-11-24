@@ -29,7 +29,7 @@ bl_info = {
     "name": "RenderMan For Blender",
     "author": "Pixar",
     "version": (21, 5, 0),
-    "blender": (2, 78, 0),
+    "blender": (2, 80, 0),
     "location": "Info Header, render engine menu",
     "description": "RenderMan 21.5 integration",
     "warning": "",
@@ -73,17 +73,19 @@ class PRManRender(bpy.types.RenderEngine):
 
 # these handlers are for marking files as dirty for ribgen
 def add_handlers(scene):
-    if engine.update_timestamp not in bpy.app.handlers.scene_update_post:
-        bpy.app.handlers.scene_update_post.append(engine.update_timestamp)
-    if properties.initial_groups not in bpy.app.handlers.scene_update_post:
-        bpy.app.handlers.load_post.append(properties.initial_groups)
-
-
+    print("2.8 Removed scene_update_post")
+#     if engine.update_timestamp not in bpy.app.handlers.scene_update_post:
+#         bpy.app.handlers.scene_update_post.append(engine.update_timestamp)
+#     if properties.initial_groups not in bpy.app.handlers.scene_update_post:
+#         bpy.app.handlers.load_post.append(properties.initial_groups)
+#
+#
 def remove_handlers():
-    if properties.initial_groups in bpy.app.handlers.scene_update_post:
-        bpy.app.handlers.scene_update_post.remove(properties.initial_groups)
-    if engine.update_timestamp in bpy.app.handlers.scene_update_post:
-        bpy.app.handlers.scene_update_post.remove(engine.update_timestamp)
+    print("2.8 Removed scene_update_post")
+#     if properties.initial_groups in bpy.app.handlers.scene_update_post:
+#         bpy.app.handlers.scene_update_post.remove(properties.initial_groups)
+#     if engine.update_timestamp in bpy.app.handlers.scene_update_post:
+#         bpy.app.handlers.scene_update_post.remove(engine.update_timestamp)
 
 
 def load_addon():
@@ -119,7 +121,7 @@ def register():
     load_addon()
     from . import presets
     presets.register()
-    bpy.utils.register_module(__name__)
+    #bpy.utils.register_module(__name__)
 
 
 
@@ -133,4 +135,4 @@ def unregister():
     preferences.unregister()
     from . import presets
     presets.unregister()
-    bpy.utils.unregister_module(__name__)
+    #bpy.utils.unregister_module(__name__)
