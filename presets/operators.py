@@ -246,8 +246,8 @@ class move_preset(bpy.types.Operator):
             return enum
         return get_libs(util.get_addon_prefs().presets_library)
 
-    preset_path = StringProperty(default='')
-    new_library = EnumProperty(items=get_libraries, description='New Library', name="New Library")
+    preset_path:  StringProperty(default='')
+    new_library:  EnumProperty(items=get_libraries, description='New Library', name="New Library")
 
     def execute(self, context):
         new_parent_path = self.properties.new_library

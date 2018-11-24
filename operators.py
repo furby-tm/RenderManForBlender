@@ -123,7 +123,7 @@ class Renderman_open_last_RIB(bpy.types.Operator):
 class RENDERMAN_OT_add_remove_output(bpy.types.Operator):
     bl_idname = "renderman.add_remove_output"
     bl_label = "Add or remove channel from output"
-    info_string = StringProperty()
+    info_string: StringProperty()
 
     def execute(self, context):
         self.report({'INFO'}, self.info_string)
@@ -933,8 +933,8 @@ class OT_add_to_group(bpy.types.Operator):
     bl_idname = 'renderman.add_to_group'
     bl_label = 'Add Selected to Object Group'
 
-    group_index = IntProperty(default=0)
-    item_type = StringProperty(default='object')
+    group_index:  IntProperty(default=0)
+    item_type: StringProperty(default='object')
 
     def execute(self, context):
         scene = context.scene
@@ -996,8 +996,8 @@ class OT_remove_add_rem_light_link(bpy.types.Operator):
     bl_idname = 'renderman.add_rem_light_link'
     bl_label = 'Add/Remove Selected from Object Group'
 
-    add_remove = StringProperty(default='add')
-    ll_name = StringProperty(default='')
+    add_remove: StringProperty(default='add')
+    ll_name: StringProperty(default='')
 
     def execute(self, context):
         scene = context.scene

@@ -92,7 +92,7 @@ def get_panels():
 
     panels = []
     for t in bpy.types.Panel.__subclasses__():
-        if hasattr(t, 'COMPAT_ENGINES') and 'BLENDER_RENDER' in t.COMPAT_ENGINES:
+        if hasattr(t, 'COMPAT_ENGINES'):
             if t.__name__ not in exclude_panels:
                 panels.append(t)
 
@@ -565,7 +565,7 @@ class RENDER_PT_renderman_advanced_settings(PRManButtonsPanel, Panel):
         col = layout.column()
         col.prop(rm, "use_metadata")
         if rm.use_metadata:
-            col.prop(rm, "custom_metadata")        
+            col.prop(rm, "custom_metadata")
         layout.separator()
         col = layout.column()
         row = col.row()

@@ -28,10 +28,10 @@ import sys
 bl_info = {
     "name": "RenderMan For Blender",
     "author": "Pixar",
-    "version": (21, 5, 0),
+    "version": (22, 2, 0),
     "blender": (2, 80, 0),
     "location": "Info Header, render engine menu",
-    "description": "RenderMan 21.5 integration",
+    "description": "RenderMan 22.2 integration",
     "warning": "",
     "category": "Render"}
 
@@ -121,6 +121,7 @@ def register():
     load_addon()
     from . import presets
     presets.register()
+    bpy.utils.register_class(PRManRender)
     #bpy.utils.register_module(__name__)
 
 
@@ -135,4 +136,5 @@ def unregister():
     preferences.unregister()
     from . import presets
     presets.unregister()
+    bpy.utils.unregister_class(PRManRender)
     #bpy.utils.unregister_module(__name__)
