@@ -2266,7 +2266,7 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    user_preferences = bpy.context.user_preferences
+    user_preferences = bpy.context.preferences
     prefs = user_preferences.addons[__package__].preferences
 
     categories = {}
