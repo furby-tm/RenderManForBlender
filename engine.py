@@ -189,7 +189,7 @@ class RPass:
             self.display_driver = 'it' if scene.renderman.render_into == 'it' else 'openexr'
 
         # pass addon prefs to init_envs
-        addon = bpy.context.user_preferences.addons[__name__.split('.')[0]]
+        addon = bpy.context.preferences.addons[__name__.split('.')[0]]
         init_exporter_env(addon.preferences)
         self.initialize_paths(scene)
         self.rm = scene.renderman
