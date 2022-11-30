@@ -1,5 +1,7 @@
 # RenderMan for Blender
 
+[![Github Release](https://img.shields.io/github/v/release/prman-pixar/RenderManForBlender?logo=github)](https://github.com/prman-pixar/RenderManForBlender/releases)
+
 - [简体中文](README.zh.md)
 - [English](README.md)
 
