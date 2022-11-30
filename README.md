@@ -1,5 +1,11 @@
 # RenderMan for Blender
 
+[![Github Release](https://img.shields.io/github/v/release/prman-pixar/RenderManForBlender?logo=github)](https://github.com/prman-pixar/RenderManForBlender/releases)
+
+- [简体中文](README.zh.md)
+- [English](README.md)
+
+
 Blender render addon for Pixar's RenderMan 21.0 and beyond. To use, install RenderMan, (free from [renderman.pixar.com](https://renderman.pixar.com/store/intro)), download [the latest release](https://github.com/prman-pixar/RenderManForBlender/releases) and put it in the addons folder for Blender. See the [installation.txt](installation.txt) file for detailed instructions.
 
 For support visit the [RenderMan forums](https://renderman.pixar.com/forum/forumdisplay.php?s=&forumid=166).
